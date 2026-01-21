@@ -3,15 +3,11 @@ from collections import defaultdict, deque
 import cv2
 import numpy as np
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Query, Session
 
-from app.database.contours import Contours
-from app.database.images import Images
-from app.database.masks import Masks
-from app.schemas.contours import Contour, logger
-from app.schemas.labels import LabelHierarchy
-from app.services.contours import get_contours_from_binary_mask
-from app.services.postprocessing import postprocess_binary_mask
+from src.schemas.contours import Contour, logger
+from src.schemas.labels import LabelHierarchy
+from src.services.contours import get_contours_from_binary_mask
+from src.services.postprocessing import postprocess_binary_mask
 
 
 class ContourHierarchy(BaseModel):
@@ -22,7 +18,7 @@ class ContourHierarchy(BaseModel):
                                                            description="Dict mapping label id to a list of objects.")
 
     @classmethod
-    def from_query(cls, query: Query[type[Contours]]) -> "ContourHierarchy":
+    def from_query(cls, query) -> "ContourHierarchy":
         """ Adds all contours in a breadth first search, then connects them to a hierarchy. """
         # Get image dimensions (all contours share same mask : image)
         first_contour = query.first()
