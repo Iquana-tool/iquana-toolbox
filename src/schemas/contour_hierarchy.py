@@ -4,9 +4,9 @@ import cv2
 import numpy as np
 from pydantic import BaseModel, Field
 
-from src.schemas.contours import Contour, logger
-from src.schemas.labels import LabelHierarchy
-from src.schemas.contours import get_contours_from_binary_mask
+from .contours import Contour, logger
+from .labels import LabelHierarchy
+from .contours import get_contours_from_binary_mask
 
 
 class ContourHierarchy(BaseModel):

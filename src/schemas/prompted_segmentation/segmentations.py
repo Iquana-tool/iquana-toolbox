@@ -3,8 +3,8 @@ from typing import List
 
 from pydantic import BaseModel, Field
 
-from src.schemas.contours import Contour
-from src.schemas.prompted_segmentation.prompts import Prompts
+from ..contours import Contour
+from .prompts import Prompts
 
 logger = getLogger(__name__)
 
