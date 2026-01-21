@@ -6,8 +6,7 @@ from pydantic import BaseModel, Field
 
 from src.schemas.contours import Contour, logger
 from src.schemas.labels import LabelHierarchy
-from src.services.contours import get_contours_from_binary_mask
-from src.services.postprocessing import postprocess_binary_mask
+from src.schemas.contours import get_contours_from_binary_mask
 
 
 class ContourHierarchy(BaseModel):
@@ -18,17 +17,10 @@ class ContourHierarchy(BaseModel):
                                                            description="Dict mapping label id to a list of objects.")
 
     @classmethod
-    def from_query(cls, query) -> "ContourHierarchy":
+    def from_query(cls, query, width, height) -> "ContourHierarchy":
         """ Adds all contours in a breadth first search, then connects them to a hierarchy. """
         # Get image dimensions (all contours share same mask : image)
         first_contour = query.first()
-        image_width, image_height = 1, 1
-        if first_contour:
-            mask = query.session.query(Masks).filter_by(id=first_contour.mask_id).first()
-            if mask:
-                image = query.session.query(Images).filter_by(id=mask.image_id).first()
-                if image:
-                    image_width, image_height = image.width, image.height
 
         # Fetch all root contours (parent_id is None)
         root_contours = query.filter_by(parent_id=None).all()
@@ -44,7 +36,7 @@ class ContourHierarchy(BaseModel):
         # Build the hierarchy
         while queue:
             contour = queue.popleft()
-            contour_obj = Contour.from_db(contour, image_width, image_height)
+            contour_obj = Contour.from_db(contour, width, height)
             id_to_contour[contour.id] = contour_obj
             label_id_to_contour[contour.label].append(contour_obj)
             if contour.parent_id is not None:
@@ -74,11 +66,9 @@ class ContourHierarchy(BaseModel):
 
     @classmethod
     async def from_semantic_mask(cls,
-                                 mask_id: int,
                                  np_mask: np.ndarray,
                                  label_hierarchy: LabelHierarchy,
-                                 added_by: str,
-                                 db: Session):
+                                 added_by: str,):
         """
         Get a contour hierarchy from a mask and a label hierarchy. The hierarchy will respect both the label
         hierarchy as well as spatial hierarchy, i.e. each child contour lies within its parent.
@@ -96,7 +86,7 @@ class ContourHierarchy(BaseModel):
                 continue
 
             # First: Extract the mask for the current label and create Contour Models
-            mask_label = postprocess_binary_mask((np_mask == label.value).astype(np.uint8))
+            mask_label = (np_mask == label.value).astype(np.uint8)
             contour_models = get_contours_from_binary_mask(mask_label,
                                                            only_return_biggest=False,
                                                            limit=None,
@@ -105,19 +95,8 @@ class ContourHierarchy(BaseModel):
                                                            )
 
             contour_entries = []
-            # Second: Add them to the database to get an id for each contour
-            for contour_model in contour_models:
-                entry = contour_model.to_db_entry(mask_id)
-                db.add(entry)
-                db.flush()
-                # Update with id
-                contour_model.id = entry.id
-                contour_entries.append(entry)
-                contour_models.append(contour_model)
-                id_to_contour[entry.id] = contour_model
-                label_id_to_contours[label.id].append(contour_model)
 
-            # Third: Iterate through the models and check for parent links
+            # Second: Iterate through the models and check for parent links
             parent = label_hierarchy.get_parent_by_value_of_child(label)
             if parent is not None:
                 for contour, entry in zip(contour_models, contour_entries):
@@ -136,7 +115,6 @@ class ContourHierarchy(BaseModel):
             else:
                 root_contours.extend(contour_models)
             contour_models_with_label_id[label] = contour_models
-        db.commit()
         return cls(
             root_contours=root_contours,
             id_to_contour=id_to_contour,
