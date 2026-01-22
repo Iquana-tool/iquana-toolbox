@@ -17,38 +17,43 @@ class ContourHierarchy(BaseModel):
                                                            description="Dict mapping label id to a list of objects.")
 
     @classmethod
-    def from_query(cls, query, width, height) -> "ContourHierarchy":
+    def from_query(cls, all_db_entries, width, height) -> "ContourHierarchy":
         """ Adds all contours in a breadth first search, then connects them to a hierarchy. """
-        # Get image dimensions (all contours share same mask : image)
-        first_contour = query.first()
+        if not all_db_entries:
+            return cls()
 
-        # Fetch all root contours (parent_id is None)
-        root_contours = query.filter_by(parent_id=None).all()
-        root_ids = [contour.id for contour in root_contours]
-
-        # Fetch all labels in the hierarchy
-        queue = deque(root_contours)
-
-        # Build a map from id to Label
+        # Map DB entries to our Pydantic Contour objects
+        # We create a dict for fast O(1) lookup by ID
         id_to_contour = {}
-        label_id_to_contour = defaultdict(list)
+        label_id_to_contours = defaultdict(list)
 
-        # Build the hierarchy
-        while queue:
-            contour = queue.popleft()
-            contour_obj = Contour.from_db(contour, width, height)
-            id_to_contour[contour.id] = contour_obj
-            label_id_to_contour[contour.label].append(contour_obj)
-            if contour.parent_id is not None:
-                parent = id_to_contour[contour.parent_id]
-                parent.add_child(contour_obj)
-            queue.extend(query.filter_by(parent_id=contour.id).all())
+        for entry in all_db_entries:
+            contour_obj = Contour.from_db(entry, width, height)
+            id_to_contour[entry.id] = contour_obj
+            label_id_to_contours[entry.label_id].append(contour_obj)
 
-        # Return the root-level labels
+        # Build the tree structure in memory
+        root_contours = []
+
+        for entry in all_db_entries:
+            current_obj = id_to_contour[entry.id]
+
+            if entry.parent_id is None:
+                # This is a top-level object (e.g., a Cell)
+                root_contours.append(current_obj)
+            else:
+                # This is a child (e.g., a Nucleus inside a Cell)
+                # Connect it to its parent object in memory
+                parent_obj = id_to_contour.get(entry.parent_id)
+                if parent_obj:
+                    parent_obj.add_child(current_obj)
+                else:
+                    # Fallback: if parent isn't in query, treat as root
+                    root_contours.append(current_obj)
         return cls(
-            root_contours=[id_to_contour[root_id] for root_id in root_ids],
+            root_contours=root_contours,
             id_to_contour=id_to_contour,
-            label_id_to_contours=label_id_to_contour,
+            label_id_to_contours=label_id_to_contours,
         )
 
     def dump_contours_as_list(self, breadth_first: bool = True) -> list[Contour]:

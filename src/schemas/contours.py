@@ -154,8 +154,10 @@ class Contour(BaseModel):
             pt=(pt * 10_000).astype(np.uint32),
             measureDist=False) >= 0 for pt in self.points)
 
-    def add_child(self, child):
-        self.children.append(child)
+    def add_child(self, child: "Contour"):
+        # Prevent duplicates and set the parent-child link
+        if child not in self.children:
+            self.children.append(child)
 
 
 def get_contours_from_binary_mask(mask: np.ndarray,
