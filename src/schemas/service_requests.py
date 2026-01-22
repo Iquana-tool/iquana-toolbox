@@ -45,8 +45,8 @@ class CompletionRequest(BaseImageRequest):
     negative_exemplars: list[BinaryMask] | None = Field(..., title="Negative exemplars")
     concept: str | None = Field(default=None, description="Optional string describing the concept.")
 
-    def get_positive_exemplar_mask(self) -> list[np.ndarray]:
+    def get_positive_exemplar_masks(self) -> list[np.ndarray]:
         return [exemplar.mask for exemplar in self.exemplars]
 
-    def get_negative_exemplar_mask(self) -> list[np.ndarray]:
+    def get_negative_exemplar_masks(self) -> list[np.ndarray]:
         return [exemplar.mask for exemplar in self.negative_exemplars]
