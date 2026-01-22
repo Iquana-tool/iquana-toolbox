@@ -1,4 +1,6 @@
 from functools import cached_property
+
+import numpy as np
 from pycocotools import mask as maskUtils
 from pydantic import BaseModel, Field
 from PIL import Image
@@ -40,4 +42,11 @@ class PromptedSegmentationRequest(BaseImageRequest):
 class CompletionRequest(BaseImageRequest):
     """ Model for instance discovery with image exemplars and concepts. """
     exemplars: list[BinaryMask] = Field(..., description="Exemplars is a list of RLE encoded binary masks")
+    negative_exemplars: list[BinaryMask] | None = Field(..., title="Negative exemplars")
     concept: str | None = Field(default=None, description="Optional string describing the concept.")
+
+    def get_positive_exemplar_mask(self) -> list[np.ndarray]:
+        return [exemplar.mask for exemplar in self.exemplars]
+
+    def get_negative_exemplar_mask(self) -> list[np.ndarray]:
+        return [exemplar.mask for exemplar in self.negative_exemplars]
