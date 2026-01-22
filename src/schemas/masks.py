@@ -24,45 +24,6 @@ class BinaryMask(BaseModel):
     def mask(self):
         return maskUtils.decode(self.rle_mask)
 
-    def get_bboxes(self,
-                   format: Literal["xywh", "x1y1x2y2", "cxcywh"] = "x1y1x2y2",
-                   relative_coordinates: bool = True,
-                   resize_to: None | tuple[int, int] = None) \
-            -> list[list[float]]:
-        bboxes = []
-        for mask in self.positive_masks:
-            seed_mask = np.array(mask, dtype=np.bool)
-            if resize_to:
-                seed_mask = cv2.resize(seed_mask.astype(np.uint8), resize_to)
-
-            indices = np.argwhere(seed_mask.astype(bool))
-
-            x_min = np.min(indices[0]).item()
-            y_min = np.min(indices[1]).item()
-            x_max = np.max(indices[0]).item()
-            y_max = np.max(indices[1]).item()
-
-            if relative_coordinates:
-                x_min /= seed_mask.shape[1]
-                y_min /= seed_mask.shape[0]
-                x_max /= seed_mask.shape[1]
-                y_max /= seed_mask.shape[0]
-
-            if format == "xywh":
-                bbox = [x_min, y_min, x_max - x_min, y_max - y_min]
-            elif format == "x1y1x2y2":
-                bbox = [x_min, y_min, x_max, y_max]
-            elif format == "cxcywh":
-                w = x_max - x_min
-                h = y_max - y_min
-                cx = x_min + w / 2
-                cy = y_min + h / 2
-                bbox = [cx, cy, w, h]
-            else:
-                raise ValueError("Unsupported format: {}".format(format))
-            bboxes.append(bbox)
-        return bboxes
-
     @classmethod
     def from_numpy_array(cls, binary_mask: np.ndarray, score=None):
         # As fortranarray
@@ -77,6 +38,19 @@ class BinaryMask(BaseModel):
             height=binary_mask.shape[0],
             width=binary_mask.shape[1],
         )
+
+    def get_as_bbox(self, relative_coords=True):
+        indices = np.argwhere(self.mask.astype(bool))
+        x_min = np.min(indices[0]).item()
+        y_min = np.min(indices[1]).item()
+        x_max = np.max(indices[0]).item()
+        y_max = np.max(indices[1]).item()
+        if relative_coords:
+            x_min /= self.width
+            y_min /= self.height
+            x_max /= self.width
+            y_max /= self.height
+        return [x_min, y_min, x_max, y_max]
 
 
 class SemanticMask(BaseModel):

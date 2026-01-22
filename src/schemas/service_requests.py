@@ -1,11 +1,13 @@
+import warnings
 from functools import cached_property
 
+import cv2
 import numpy as np
 from pycocotools import mask as maskUtils
 from pydantic import BaseModel, Field
 from PIL import Image
 
-from typing import Union
+from typing import Union, Literal
 
 from src.schemas.caches import get_image_from_url_cached
 from src.schemas.masks import BinaryMask
@@ -41,13 +43,13 @@ class PromptedSegmentationRequest(BaseImageRequest):
 
 class CompletionRequest(BaseImageRequest):
     """ Model for instance discovery with image exemplars and concepts. """
-    exemplars: list[BinaryMask] = Field(..., description="Exemplars is a list of RLE encoded binary masks")
+    positive_exemplars: list[BinaryMask] = Field(..., description="Exemplars is a list of RLE encoded binary masks")
     negative_exemplars: list[BinaryMask] | None = Field(..., title="Negative exemplars")
     concept: str | None = Field(default=None, description="Optional string describing the concept.")
 
     @cached_property
     def positive_exemplar_masks(self) -> list[np.ndarray]:
-        return [exemplar.mask for exemplar in self.exemplars]
+        return [exemplar.mask for exemplar in self.positive_exemplars]
 
     @cached_property
     def negative_exemplar_masks(self) -> list[np.ndarray]:
@@ -55,8 +57,43 @@ class CompletionRequest(BaseImageRequest):
 
     @cached_property
     def combined_exemplar_mask(self) -> np.ndarray:
-        combined_mask = self.exemplars[0].mask
-        if len(self.exemplars) > 1:
-            for exemplar in self.exemplars[1:]:
+        combined_mask = self.positive_exemplars[0].mask
+        if len(self.positive_exemplars) > 1:
+            for exemplar in self.positive_exemplars[1:]:
                 combined_mask = np.logical_or(combined_mask, exemplar.mask)
         return combined_mask
+
+    def get_bboxes(self,
+                   format: Literal["xywh", "x1y1x2y2", "cxcywh"] = "x1y1x2y2",
+                   relative_coordinates: bool = True,
+                   resize_to: None | tuple[int, int] = None) \
+            -> list[list[float]]:
+        bboxes = []
+        for mask in self.positive_exemplars:
+            if resize_to is not None and relative_coordinates:
+                warnings.warn("Wanting relative coordinates and resizing to a fixed size is contradictory. "
+                              "Returning resized coordinates.")
+            x_min, y_min, x_max, y_max = mask.get_as_bbox(
+                relative_coords=relative_coordinates if resize_to is None else True
+            )
+
+            if resize_to:
+                x_min *= resize_to[1]
+                y_min *= resize_to[0]
+                x_max *= resize_to[1]
+                y_max *= resize_to[0]
+
+            if format == "xywh":
+                bbox = [x_min, y_min, x_max - x_min, y_max - y_min]
+            elif format == "x1y1x2y2":
+                bbox = [x_min, y_min, x_max, y_max]
+            elif format == "cxcywh":
+                w = x_max - x_min
+                h = y_max - y_min
+                cx = x_min + w / 2
+                cy = y_min + h / 2
+                bbox = [cx, cy, w, h]
+            else:
+                raise ValueError("Unsupported format: {}".format(format))
+            bboxes.append(bbox)
+        return bboxes
