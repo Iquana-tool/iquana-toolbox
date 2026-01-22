@@ -131,8 +131,7 @@ class Contour(BaseModel):
     @classmethod
     def from_binary_mask(cls,
                          binary_mask: np.ndarray,
-                         label_id,
-                         added_by):
+                         **kwargs):
         if binary_mask.dtype != np.uint8:
             binary_mask = binary_mask.astype(np.uint8)
         contours, _ = cv2.findContours(binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -141,8 +140,7 @@ class Contour(BaseModel):
         contour[..., 1] = contour[..., 1] / binary_mask.shape[0]
         return cls.from_normalized_cv_contour(
             normalized_cv_contour=contour,
-            label_id=label_id,
-            added_by=added_by,
+            **kwargs
         )
 
     def __in__(self, other):
