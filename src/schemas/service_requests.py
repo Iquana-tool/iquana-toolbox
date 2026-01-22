@@ -22,7 +22,7 @@ class BaseImageRequest(BaseModel):
 
     class Config:
         # This allows property to work smoothly with Pydantic
-        ignored_types = (property,)
+        ignored_types = (property, cached_property)
 
     @property
     def image(self) -> Image.Image:
@@ -45,8 +45,18 @@ class CompletionRequest(BaseImageRequest):
     negative_exemplars: list[BinaryMask] | None = Field(..., title="Negative exemplars")
     concept: str | None = Field(default=None, description="Optional string describing the concept.")
 
-    def get_positive_exemplar_masks(self) -> list[np.ndarray]:
+    @cached_property
+    def positive_exemplar_masks(self) -> list[np.ndarray]:
         return [exemplar.mask for exemplar in self.exemplars]
 
-    def get_negative_exemplar_masks(self) -> list[np.ndarray]:
+    @cached_property
+    def negative_exemplar_masks(self) -> list[np.ndarray]:
         return [exemplar.mask for exemplar in self.negative_exemplars]
+
+    @cached_property
+    def combined_exemplar_mask(self) -> np.ndarray:
+        combined_mask = self.exemplars[0].mask
+        if len(self.exemplars) > 1:
+            for exemplar in self.exemplars[1:]:
+                combined_mask = np.logical_or(combined_mask, exemplar.mask)
+        return combined_mask
