@@ -5,6 +5,7 @@ from PIL import Image
 
 from typing import Union
 
+from src.schemas.caches import get_image_from_url_cached
 from src.schemas.prompted_segmentation.prompts import Prompts
 
 
@@ -17,14 +18,14 @@ class BaseImageRequest(BaseModel):
     user_id: Union[str, int] = Field(..., title="User ID", description="Unique identifier for the user.")
 
     class Config:
-        # This allows cached_property to work smoothly with Pydantic
-        ignored_types = (cached_property,)
+        # This allows property to work smoothly with Pydantic
+        ignored_types = (property,)
 
-    @cached_property
+    @property
     def image(self) -> Image.Image:
         """ Shared logic to open the image. """
         # You might want to add error handling here (e.g., requests.get for remote URLs)
-        return Image.open(self.image_url)
+        return get_image_from_url_cached(self.image_url)
 
 
 # --- Concrete Implementations ---
