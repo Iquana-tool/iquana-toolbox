@@ -10,6 +10,7 @@ from PIL import Image
 from typing import Union, Literal
 
 from src.schemas.caches import get_image_from_url_cached
+from src.schemas.labels import Label
 from src.schemas.masks import BinaryMask
 from src.schemas.prompted_segmentation.prompts import Prompts
 
@@ -45,7 +46,7 @@ class CompletionRequest(BaseImageRequest):
     """ Model for instance discovery with image exemplars and concepts. """
     positive_exemplars: list[BinaryMask] = Field(..., description="Exemplars is a list of RLE encoded binary masks")
     negative_exemplars: list[BinaryMask] | None = Field(..., title="Negative exemplars")
-    concept: str | None = Field(default=None, description="Optional string describing the concept.")
+    concept: Label | None = Field(default=None, description="Optional label defining the concept.")
 
     @cached_property
     def positive_exemplar_masks(self) -> list[np.ndarray]:
