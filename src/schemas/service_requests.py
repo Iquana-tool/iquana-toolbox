@@ -1,0 +1,51 @@
+from functools import cached_property
+from pycocotools import mask as maskUtils
+from pydantic import BaseModel, Field
+from PIL import Image
+
+from typing import Union
+
+from src.schemas.prompted_segmentation.prompts import Prompts
+
+
+# --- Base Model ---
+
+class BaseImageRequest(BaseModel):
+    """ Shared fields and logic for all image-based requests. """
+    image_url: str = Field(..., title="Image URL")
+    model_registry_key: str = Field(..., title="Model registry key", description="Model identifier string.")
+    user_id: Union[str, int] = Field(..., title="User ID", description="Unique identifier for the user.")
+
+    class Config:
+        # This allows cached_property to work smoothly with Pydantic
+        ignored_types = (cached_property,)
+
+    @cached_property
+    def image(self) -> Image.Image:
+        """ Shared logic to open the image. """
+        # You might want to add error handling here (e.g., requests.get for remote URLs)
+        return Image.open(self.image_url)
+
+
+# --- Concrete Implementations ---
+
+class PromptedSegmentationRequest(BaseImageRequest):
+    """ Model for prompted segmentation. """
+    prompts: Prompts = Field(..., title="Prompts", description="Prompts for segmentation")
+    previous_mask_rle: dict | None = Field(None, title="Previous Mask")
+
+    @cached_property
+    def previous_mask(self):
+        if self.previous_mask_rle is None:
+            return None
+        return maskUtils.decode(self.previous_mask_rle)
+
+
+class CompletionRequest(BaseImageRequest):
+    """ Model for instance discovery with image exemplars and concepts. """
+    exemplar_rles: list[dict] = Field(..., description="Seeds is a list of RLE encoded binary masks")
+    concept: str | None = Field(default=None, description="Optional string describing the concept.")
+
+    @cached_property
+    def seed_masks(self):
+        return [maskUtils.decode(rle) for rle in self.exemplar_rles]
