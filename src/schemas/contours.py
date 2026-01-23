@@ -1,12 +1,33 @@
 import json
 from logging import getLogger
+from typing import List
+
 import cv2
 import numpy as np
 from pydantic import BaseModel, field_validator, Field, model_validator
 from pycocotools import mask as maskUtils
+
+from .masks import BinaryMask
 from .quantification import QuantificationModel
 
 logger = getLogger(__name__)
+
+
+def get_contours(mask,
+                 retr_str: int = cv2.RETR_EXTERNAL,
+                 approx_str: int = cv2.CHAIN_APPROX_SIMPLE,
+                 normalized: bool = True,):
+    if mask.dtype != np.uint8:
+        mask = mask.astype(np.uint8)
+    contours, hierarchy = cv2.findContours(mask, retr_str, approx_str)
+    # Convert contours to a numpy array, otherwise is sequence of np arrays. Code below wouldnt run.
+    contours = np.array(contours, dtype=np.int32)
+    logger.debug(f"Found {len(contours)} contours.")
+    if normalized:
+        # Normalize contours
+        contours[..., 0] = contours[..., 0] / mask.shape[1]
+        contours[..., 1] = contours[..., 1] / mask.shape[0]
+    return contours, hierarchy
 
 
 class Contour(BaseModel):
@@ -131,15 +152,37 @@ class Contour(BaseModel):
     @classmethod
     def from_binary_mask(cls,
                          binary_mask: np.ndarray,
+                         only_return_biggest_contour: bool = True,
                          **kwargs):
-        if binary_mask.dtype != np.uint8:
-            binary_mask = binary_mask.astype(np.uint8)
-        contours, _ = cv2.findContours(binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        contour = max(contours, key=cv2.contourArea).astype(float)
-        contour[..., 0]  = contour[..., 0] / binary_mask.shape[1]
-        contour[..., 1] = contour[..., 1] / binary_mask.shape[0]
-        return cls.from_normalized_cv_contour(
-            normalized_cv_contour=contour,
+        """
+            Convert a binary mask into a contour list.
+            :param binary_mask: The mask to turn into a list of contours.
+            :param only_return_biggest_contour: If true, returns only the biggest contour, not a list!
+            :param kwargs: Additional keyword arguments. All contours will be initialized with these.
+            :returns: List of contour models.
+        """
+        contours, _ = get_contours(binary_mask)
+
+        if only_return_biggest_contour:
+            contour = max(contours, key=cv2.contourArea).astype(float)
+            return cls.from_normalized_cv_contour(
+                normalized_cv_contour=contour,
+                **kwargs
+            )
+        else:
+            return [cls.from_normalized_cv_contour(
+                normalized_cv_contour=contour,
+                **kwargs
+            ) for contour in contours]
+
+    @classmethod
+    def from_binary_mask_model(cls,
+                               mask_model: BinaryMask,
+                               **kwargs):
+        """ Create a contour from a binary mask model """
+        return cls.from_binary_mask(
+            binary_mask=mask_model.mask,
+            confidence=mask_model.score,
             **kwargs
         )
 
