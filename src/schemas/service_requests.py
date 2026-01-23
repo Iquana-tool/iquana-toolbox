@@ -7,7 +7,7 @@ from PIL import Image
 from pydantic import BaseModel, Field
 
 from .caches import get_image_from_url_cached
-from .labels import Label
+from .labels import Label, LabelHierarchy
 from .masks import BinaryMask
 from .prompted_segmentation.prompts import Prompts
 
@@ -34,7 +34,17 @@ class BaseServiceRequest(BaseImageRequest):
     """ Expands the BaseImageRequest with a model_registry_key. """
     model_registry_key: str = Field(..., title="Model registry key", description="Model identifier string.")
 
+
 # --- Concrete Implementations ---
+
+
+class SemanticSegmentationRequest(BaseServiceRequest):
+    """ Expands the BaseServiceRequest with a label hierarchy for the model."""
+    label_hierarchy: LabelHierarchy = Field(
+        ..., title="Label hierarchy",
+        description="A hierarchy of the labels. Describes which labels should be present in the mask."
+    )
+
 
 class PromptedSegmentationRequest(BaseServiceRequest):
     """ Model for prompted segmentation. """
