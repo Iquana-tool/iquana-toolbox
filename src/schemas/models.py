@@ -14,6 +14,8 @@ class BaseAIModel(BaseModel):
                                               "Gives more information about the model.")
     tags: List[str] = Field(...,
                             description="Human-readable tags of the model. Tags are short descriptors of the model.")
+    number_of_parameters: int | None = Field(...,
+                                      description="The number of parameters in the model.")
     pretrained: bool = Field(..., description="Whether or not the model is trained on pretrained models.")
     trainable: bool = Field(..., description="Whether or not the model is trainable.")
     finetunable: bool = Field(..., description="Whether or not the model is finetunable.")
