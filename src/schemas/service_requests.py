@@ -20,7 +20,6 @@ from src.schemas.prompted_segmentation.prompts import Prompts
 class BaseImageRequest(BaseModel):
     """ Shared fields and logic for all image-based requests. """
     image_url: str = Field(..., title="Image URL")
-    model_registry_key: str = Field(..., title="Model registry key", description="Model identifier string.")
     user_id: Union[str, int] = Field(..., title="User ID", description="Unique identifier for the user.")
 
     class Config:
@@ -34,15 +33,19 @@ class BaseImageRequest(BaseModel):
         return get_image_from_url_cached(self.image_url)
 
 
+class BaseServiceRequest(BaseImageRequest):
+    """ Expands the BaseImageRequest with a model_registry_key. """
+    model_registry_key: str = Field(..., title="Model registry key", description="Model identifier string.")
+
 # --- Concrete Implementations ---
 
-class PromptedSegmentationRequest(BaseImageRequest):
+class PromptedSegmentationRequest(BaseServiceRequest):
     """ Model for prompted segmentation. """
     prompts: Prompts = Field(..., title="Prompts", description="Prompts for segmentation")
     previous_mask: BinaryMask | None = Field(None, title="Previous Mask")
 
 
-class CompletionRequest(BaseImageRequest):
+class CompletionRequest(BaseServiceRequest):
     """ Model for instance discovery with image exemplars and concepts. """
     positive_exemplars: list[BinaryMask] = Field(..., description="Exemplars is a list of RLE encoded binary masks")
     negative_exemplars: list[BinaryMask] | None = Field(..., title="Negative exemplars")
