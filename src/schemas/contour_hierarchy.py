@@ -70,7 +70,7 @@ class ContourHierarchy(BaseModel):
         return contours_list
 
     @classmethod
-    async def from_semantic_mask(cls,
+    def from_semantic_mask(cls,
                                  np_mask: np.ndarray,
                                  label_hierarchy: LabelHierarchy,
                                  added_by: str,):
