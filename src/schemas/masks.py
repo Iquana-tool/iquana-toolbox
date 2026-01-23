@@ -1,10 +1,7 @@
 from functools import cached_property
-from typing import Literal
 
-import cv2
 import numpy as np
 from pycocotools import mask as maskUtils
-
 from pydantic import BaseModel, Field, computed_field
 
 from .labels import LabelHierarchy
@@ -21,7 +18,7 @@ class BinaryMask(BaseModel):
         ignored_types = (cached_property,)
 
     @cached_property
-    def mask(self):
+    def mask(self) -> np.ndarray:
         return maskUtils.decode(self.rle_mask)
 
     @classmethod
@@ -63,16 +60,19 @@ class SemanticMask(BaseModel):
         ignored_types = (cached_property,)
 
     @computed_field
-    def score(self):
+    @property
+    def score(self) -> float:
         return np.sum(bin_mask.score for bin_mask in self.label_id_to_binary_mask.values())
 
     @computed_field
-    def height(self):
-        return (self.label_id_to_binary_mask.values())[0].height
+    @property
+    def height(self) -> int:
+        return list(self.label_id_to_binary_mask.values())[0].height
 
     @computed_field
-    def width(self):
-        return (self.label_id_to_binary_mask.values())[0].width
+    @property
+    def width(self) -> int:
+        return list(self.label_id_to_binary_mask.values())[0].width
 
     @cached_property
     def mask(self):

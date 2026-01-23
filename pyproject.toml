@@ -10,4 +10,5 @@ dependencies = [
     "pycocotools>=2.0.11",
     "pydantic~=2.12.5",
     "scipy~=1.17.0",
+    "scipy-stubs~=1.17.0",
 ]

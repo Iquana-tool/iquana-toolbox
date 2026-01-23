@@ -1,13 +1,10 @@
 import warnings
 from functools import cached_property
-
-import cv2
-import numpy as np
-from pycocotools import mask as maskUtils
-from pydantic import BaseModel, Field
-from PIL import Image
-
 from typing import Union, Literal
+
+import numpy as np
+from PIL import Image
+from pydantic import BaseModel, Field
 
 from .caches import get_image_from_url_cached
 from .labels import Label

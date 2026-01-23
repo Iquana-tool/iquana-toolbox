@@ -1,9 +1,10 @@
 from functools import lru_cache
 
-from PIL import Image
+import cv2
+import numpy as np
 
 
 @lru_cache(maxsize=128)
-def get_image_from_url_cached(url: str):
+def get_image_from_url_cached(url: str) -> np.ndarray:
     # This WILL persist across different requests
-    return Image.open(url)
+    return cv2.imread(url)
