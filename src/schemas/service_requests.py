@@ -46,6 +46,16 @@ class SemanticSegmentationRequest(BaseServiceRequest):
     )
 
 
+class MultiSemanticSegmentationRequest(BaseModel):
+    """ Expands the BaseServiceRequest with a label hierarchy for the model."""
+    images: list[BaseImageRequest] = Field(..., title="Images", description="Images to expand.")
+    model_registry_key: str = Field(..., title="Model registry key", description="Model identifier string.")
+    label_hierarchy: LabelHierarchy = Field(
+        ..., title="Label hierarchy",
+        description="A hierarchy of the labels. Describes which labels should be present in the mask."
+    )
+
+
 class PromptedSegmentationRequest(BaseServiceRequest):
     """ Model for prompted segmentation. """
     prompts: Prompts = Field(..., title="Prompts", description="Prompts for segmentation")
