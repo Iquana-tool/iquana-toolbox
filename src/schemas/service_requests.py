@@ -9,10 +9,10 @@ from PIL import Image
 
 from typing import Union, Literal
 
-from src.schemas.caches import get_image_from_url_cached
-from src.schemas.labels import Label
-from src.schemas.masks import BinaryMask
-from src.schemas.prompted_segmentation.prompts import Prompts
+from .caches import get_image_from_url_cached
+from .labels import Label
+from .masks import BinaryMask
+from .prompted_segmentation.prompts import Prompts
 
 
 # --- Base Model ---

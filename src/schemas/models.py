@@ -26,3 +26,7 @@ class PromptedSegmentationModels(BaseAIModel):
 
 class CompletionModel(BaseAIModel):
     pass
+
+
+class SemanticSegmentationModels(BaseAIModel):
+    pass

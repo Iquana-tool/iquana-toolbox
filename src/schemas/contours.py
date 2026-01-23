@@ -1,11 +1,10 @@
 import json
 from logging import getLogger
-from typing import List
 
 import cv2
 import numpy as np
-from pydantic import BaseModel, field_validator, Field, model_validator
 from pycocotools import mask as maskUtils
+from pydantic import BaseModel, field_validator, Field, model_validator
 
 from .masks import BinaryMask
 from .quantification import QuantificationModel

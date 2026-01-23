@@ -7,7 +7,7 @@ from pycocotools import mask as maskUtils
 
 from pydantic import BaseModel, Field, computed_field
 
-from src.schemas.labels import LabelHierarchy
+from .labels import LabelHierarchy
 
 
 class BinaryMask(BaseModel):
