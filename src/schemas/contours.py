@@ -105,9 +105,13 @@ class Contour(BaseModel):
         )
         return binary_mask.astype(bool)
 
+    def to_binary_mask_model(self, height, width):
+        """ Return a binary mask given the height and width. """
+        mask = self.to_binary_mask(height, width)
+        return BinaryMask.from_numpy_array(mask, self.confidence)
+
     def to_rle_encoding(self, height, width):
-        bin_mask = self.to_binary_mask(height, width)
-        return maskUtils.encode(np.asfortranarray(bin_mask.astype(np.uint8)))
+        return self.to_binary_mask_model(height, width).rle_mask
 
     def to_rescaled_contour(self, height, width):
         """ Return a rescaled contour given the height and width. """
