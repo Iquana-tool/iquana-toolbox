@@ -73,6 +73,8 @@ class CompletionRequest(BaseServiceRequest):
 
     @cached_property
     def negative_exemplar_masks(self) -> list[np.ndarray]:
+        if self.negative_exemplars is None:
+            return []
         return [exemplar.mask for exemplar in self.negative_exemplars]
 
     @cached_property
