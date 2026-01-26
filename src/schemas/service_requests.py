@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from .caches import get_image_from_url_cached
 from .labels import Label, LabelHierarchy
 from .masks import BinaryMask
-from .prompted_segmentation.prompts import Prompts
+from src.schemas.prompts import Prompts
 
 
 # --- Base Model ---

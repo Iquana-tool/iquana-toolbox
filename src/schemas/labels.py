@@ -11,6 +11,19 @@ class Label(BaseModel):
                                         "Values are unique to the dataset.")
     parent_id: int | None = Field(None, description="The parent label's id.")
     children: list["Label"] = Field([], description="The child label object.")
+
+    def __eq__(self, other):
+        if not isinstance(other, Label):
+            return False
+
+        # Check all relevant fields except 'name'
+        return (
+                self.id == other.id and
+                self.dataset_id == other.dataset_id and
+                self.value == other.value and
+                self.parent_id == other.parent_id and
+                self.children == other.children  # This triggers recursive __eq__ on children
+        )
     
     @classmethod
     def from_db(cls, label):
@@ -75,6 +88,17 @@ class LabelHierarchy(BaseModel):
 
     def __len__(self):
         return len(self.id_to_label_object.keys())
+
+    def __eq__(self, other):
+        if not isinstance(other, LabelHierarchy):
+            return False
+
+        # If the root trees are identical (ignoring names), the hierarchies are equal.
+        # We check length first as a quick short-circuit.
+        if len(self.root_level_labels) != len(other.root_level_labels):
+            return False
+
+        return self.root_level_labels == other.root_level_labels
 
     def get_parent_by_id_of_child(self, child_id):
         child = self.id_to_label_object[child_id]

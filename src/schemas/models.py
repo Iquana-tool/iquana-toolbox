@@ -1,6 +1,9 @@
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
+
+from src.schemas.labels import LabelHierarchy
+
 
 # Schemas
 class BaseAIModel(BaseModel):
@@ -15,7 +18,7 @@ class BaseAIModel(BaseModel):
     tags: List[str] = Field(...,
                             description="Human-readable tags of the model. Tags are short descriptors of the model.")
     number_of_parameters: int | None = Field(...,
-                                      description="The number of parameters in the model.")
+                                             description="The number of parameters in the model.")
     pretrained: bool = Field(..., description="Whether or not the model is trained on pretrained models.")
     trainable: bool = Field(..., description="Whether or not the model is trainable.")
     finetunable: bool = Field(..., description="Whether or not the model is finetunable.")
@@ -31,4 +34,18 @@ class CompletionModel(BaseAIModel):
 
 
 class SemanticSegmentationModels(BaseAIModel):
-    pass
+    label_hierarchy: Optional[LabelHierarchy] = Field(
+        ...,
+        description="Label hierarchy that the model can predict. This does not mean"
+                    "the model predicts hierarchical segments. It is used to check "
+                    "what labels can be predicted in general. Eg. when the user makes"
+                    "significant changes to the label hierarchy, the model becomes "
+                    "deprecated, as it is not trained to predict this. It is optional,"
+                    "because base models dont predict anything."
+    )
+    model_path: Optional[str] = Field(None,
+                                      description="The path of a trained semantic segmentation model. This is only "
+                                                  "set for models that have been trained locally.")
+
+    def is_base_model(self):
+        return self.label_hierarchy is None
