@@ -14,19 +14,20 @@ logger = getLogger(__name__)
 
 def get_contours(mask,
                  retr_str: int = cv2.RETR_EXTERNAL,
-                 approx_str: int = cv2.CHAIN_APPROX_SIMPLE,
-                 normalized: bool = True,):
+                 approx_str: int = cv2.CHAIN_APPROX_SIMPLE):
     if mask.dtype != np.uint8:
         mask = mask.astype(np.uint8)
     contours, hierarchy = cv2.findContours(mask, retr_str, approx_str)
     contours = list(contours)
     logger.debug(f"Found {len(contours)} contours.")
-    if normalized:
-        # Normalize contours
-        for i, contour in enumerate(contours):
-            contours[i] = contour[..., 0] / mask.shape[1]
-            contours[i] = contour[..., 1] / mask.shape[0]
     return contours, hierarchy
+
+
+def normalize_contours(contours: list[np.ndarray], width, height) -> list[np.ndarray]:
+    for i, contour in enumerate(contours):
+        contours[i] = contour[..., 0] / width
+        contours[i] = contour[..., 1] / height
+    return contours
 
 
 class Contour(BaseModel):
@@ -168,11 +169,16 @@ class Contour(BaseModel):
 
         if only_return_biggest_contour:
             contour = max(contours, key=cv2.contourArea).astype(float)
+            contour = normalize_contours(
+                [contour],
+                height=binary_mask.shape[0],
+                width=binary_mask.shape[1])[0]
             return cls.from_normalized_cv_contour(
                 normalized_cv_contour=contour,
                 **kwargs
             )
         else:
+            contours = normalize_contours(contours, height=binary_mask.shape[0], width=binary_mask.shape[1])
             return [cls.from_normalized_cv_contour(
                 normalized_cv_contour=contour,
                 **kwargs
