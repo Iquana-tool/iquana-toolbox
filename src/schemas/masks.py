@@ -38,10 +38,10 @@ class BinaryMask(BaseModel):
 
     def get_as_bbox(self, relative_coords=True):
         indices = np.argwhere(self.mask.astype(bool))
-        x_min = np.min(indices[0]).item()
-        y_min = np.min(indices[1]).item()
-        x_max = np.max(indices[0]).item()
-        y_max = np.max(indices[1]).item()
+        x_min = np.min(indices[1]).item()
+        y_min = np.min(indices[0]).item()
+        x_max = np.max(indices[1]).item()
+        y_max = np.max(indices[0]).item()
         if relative_coords:
             x_min /= self.width
             y_min /= self.height
