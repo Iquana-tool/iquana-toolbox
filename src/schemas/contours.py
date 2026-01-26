@@ -19,13 +19,13 @@ def get_contours(mask,
     if mask.dtype != np.uint8:
         mask = mask.astype(np.uint8)
     contours, hierarchy = cv2.findContours(mask, retr_str, approx_str)
-    # Convert contours to a numpy array, otherwise is sequence of np arrays. Code below wouldnt run.
-    contours = np.array(contours, dtype=np.int32)
+    contours = list(contours)
     logger.debug(f"Found {len(contours)} contours.")
     if normalized:
         # Normalize contours
-        contours[..., 0] = contours[..., 0] / mask.shape[1]
-        contours[..., 1] = contours[..., 1] / mask.shape[0]
+        for i, contour in enumerate(contours):
+            contours[i] = contour[..., 0] / mask.shape[1]
+            contours[i] = contour[..., 1] / mask.shape[0]
     return contours, hierarchy
 
 
