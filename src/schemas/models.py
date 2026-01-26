@@ -3,6 +3,7 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 
 from src.schemas.labels import LabelHierarchy
+from src.schemas.training import TrainingProgress
 
 
 # Schemas
@@ -46,6 +47,10 @@ class SemanticSegmentationModels(BaseAIModel):
     model_path: Optional[str] = Field(None,
                                       description="The path of a trained semantic segmentation model. This is only "
                                                   "set for models that have been trained locally.")
+    progress: Optional[TrainingProgress] = Field(
+        default=None,
+        description="A class to track the progress of training and get the history of values."
+    )
 
     def is_base_model(self):
         return self.label_hierarchy is None

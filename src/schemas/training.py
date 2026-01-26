@@ -48,6 +48,11 @@ class SemanticTrainingRequest(BaseModel):
     mask_urls: list[str] = Field(..., description="List of mask urls to train on.")
     val_ratio: float = Field(default=0.1, description="Ratio of training data to validation data.")
     image_size: tuple = Field((224, 224), description="Image size.")
+    loss: Literal["cross_entropy", "dice_loss", "focal_loss"] = Field(
+        default="cross_entropy",
+        description="The loss the model should be trained on. This is currently hardcoded to three options: "
+                    "cross_entropy, dice_loss and focal_loss."
+    )
     model_registry_key: str = Field(default="unet", description="A key from the model registry")
     label_hierarchy: LabelHierarchy = Field(
         description="Label hierarchy to be used for training and evaluation."
