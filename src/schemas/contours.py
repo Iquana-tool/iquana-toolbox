@@ -124,16 +124,12 @@ class Contour(BaseModel):
     def from_normalized_cv_contour(
             cls,
             normalized_cv_contour,
-            label_id,
-            added_by,
             **kwargs):
         x_coords = normalized_cv_contour[..., 0].flatten()
         y_coords = normalized_cv_contour[..., 1].flatten()
         return cls(
             x=x_coords.tolist(),
             y=y_coords.tolist(),
-            label_id=label_id,
-            added_by=added_by,
             **kwargs
         )
 
