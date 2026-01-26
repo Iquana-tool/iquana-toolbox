@@ -3,6 +3,8 @@ from typing import Optional, Literal
 from typing import Tuple
 from pydantic import BaseModel, Field, computed_field
 
+from src.schemas.labels import LabelHierarchy
+
 
 class HyperParams(BaseModel):
     batch_size: int = Field(default=32, description="Batch size to use for training.")
@@ -47,6 +49,9 @@ class SemanticTrainingRequest(BaseModel):
     val_ratio: float = Field(default=0.1, description="Ratio of training data to validation data.")
     image_size: tuple = Field((224, 224), description="Image size.")
     model_registry_key: str = Field(default="unet", description="A key from the model registry")
+    label_hierarchy: LabelHierarchy = Field(
+        description="Label hierarchy to be used for training and evaluation."
+    )
     num_epochs: int = Field(default=100, description="Number of epochs to train.")
 
     # Hyperparameters; Not sure if we should concern users with this kind of stuff. However, allowing more control
