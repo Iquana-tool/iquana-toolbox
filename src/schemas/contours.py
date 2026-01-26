@@ -35,7 +35,7 @@ class Contour(BaseModel):
     id: int | None = Field(default=None, description="Contour id. Only pass None if the id is not yet known.")
     label_id: int | None = Field(default=None, description="ID of the label of the mask. None for unlabelled contour.")
     parent_id: int | None = Field(default=None, description="ID of the parent contour. None if the contour has "
-                                                                    "no parent")
+                                                            "no parent")
     children: list["Contour"] = Field(default=[], description="List of objects represented by their contours.")
     reviewed_by: list[str] = Field(default=[], description="List of users who reviewed the contour.")
 
@@ -121,7 +121,12 @@ class Contour(BaseModel):
         return np.expand_dims(np.array(list(zip(rescaled_x, rescaled_y))), axis=1)
 
     @classmethod
-    def from_normalized_cv_contour(cls, normalized_cv_contour, label_id, added_by):
+    def from_normalized_cv_contour(
+            cls,
+            normalized_cv_contour,
+            label_id,
+            added_by,
+            **kwargs):
         x_coords = normalized_cv_contour[..., 0].flatten()
         y_coords = normalized_cv_contour[..., 1].flatten()
         return cls(
@@ -129,6 +134,7 @@ class Contour(BaseModel):
             y=y_coords.tolist(),
             label_id=label_id,
             added_by=added_by,
+            **kwargs
         )
 
     @classmethod
@@ -214,7 +220,7 @@ def get_contours_from_binary_mask(mask: np.ndarray,
                                   only_return_biggest=False,
                                   limit=None,
                                   added_by: str = "system",
-                                  label_id: int = None,) -> list[Contour]:
+                                  label_id: int = None, ) -> list[Contour]:
     """ Get contour models from a binary mask
     :param mask: A binary mask in the form of a numpy array
     :param only_return_biggest: If true, only return the biggest contour.
