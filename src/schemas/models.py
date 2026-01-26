@@ -44,9 +44,6 @@ class SemanticSegmentationModels(BaseAIModel):
                     "deprecated, as it is not trained to predict this. It is optional,"
                     "because base models dont predict anything."
     )
-    model_path: Optional[str] = Field(None,
-                                      description="The path of a trained semantic segmentation model. This is only "
-                                                  "set for models that have been trained locally.")
     progress: Optional[TrainingProgress] = Field(
         default=None,
         description="A class to track the progress of training and get the history of values."
