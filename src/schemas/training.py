@@ -3,7 +3,7 @@ from typing import Optional, Literal
 from typing import Tuple
 from pydantic import BaseModel, Field, computed_field
 
-from src.schemas.labels import LabelHierarchy
+from .labels import LabelHierarchy
 
 
 class HyperParams(BaseModel):

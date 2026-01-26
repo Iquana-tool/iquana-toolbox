@@ -2,11 +2,10 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
-from src.schemas.labels import LabelHierarchy
-from src.schemas.training import TrainingProgress
+from .labels import LabelHierarchy
+from .training import TrainingProgress
 
 
-# Schemas
 class BaseAIModel(BaseModel):
     registry_key: str = Field(
         ...,
