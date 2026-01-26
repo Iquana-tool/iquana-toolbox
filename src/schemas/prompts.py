@@ -35,6 +35,23 @@ class BoxPrompt(BaseModel):
             raise ValueError("Box coordinates must be between 0 and 1.")
         return value
 
+    @property
+    def xyxy(self):
+        return [self.min_x, self.min_y, self.max_x, self.max_y]
+
+    @property
+    def xywh(self):
+        return [self.min_x,
+                self.min_y,
+                self.max_x - self.min_x,
+                self.max_y - self.min_y]
+
+    def cxcywh(self):
+        return [(self.min_x + self.max_x) / 2,
+                (self.min_y + self.max_y) / 2,
+                self.max_x - self.min_x,
+                self.max_y - self.min_y]
+
 
 class PolygonPrompt(BaseModel):
     """ Model for validating a polygon annotation. """
