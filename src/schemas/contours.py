@@ -25,8 +25,9 @@ def get_contours(mask,
 
 def normalize_contours(contours: list[np.ndarray], width, height) -> list[np.ndarray]:
     for i, contour in enumerate(contours):
-        contours[i] = contour[..., 0] / width
-        contours[i] = contour[..., 1] / height
+        contour[..., 0] = contour[..., 0] / width
+        contour[..., 1] = contour[..., 1] / height
+        contours[i] = contour
     return contours
 
 
