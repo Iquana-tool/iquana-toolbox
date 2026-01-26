@@ -117,7 +117,7 @@ class TrainingProgress(BaseModel):
 
     @computed_field
     @property
-    def performance(self):
+    def performance(self) -> dict[str, dict[str, float]]:
         return {
             "train": self.train_metrics.get_epoch_metrics(self.best_epoch),
             "val": self.val_metrics.get_epoch_metrics(self.best_epoch)
