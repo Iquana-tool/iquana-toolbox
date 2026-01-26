@@ -3,13 +3,12 @@ from functools import cached_property
 from typing import Union, Literal
 
 import numpy as np
-from PIL import Image
 from pydantic import BaseModel, Field
 
 from .caches import get_image_from_url_cached
 from .labels import Label, LabelHierarchy
 from .masks import BinaryMask
-from src.schemas.prompts import Prompts
+from .prompts import Prompts
 
 
 # --- Base Model ---
@@ -24,7 +23,7 @@ class BaseImageRequest(BaseModel):
         ignored_types = (property, cached_property)
 
     @property
-    def image(self) -> Image.Image:
+    def image(self) -> np.ndarray:
         """ Shared logic to open the image. """
         # You might want to add error handling here (e.g., requests.get for remote URLs)
         return get_image_from_url_cached(self.image_url)
