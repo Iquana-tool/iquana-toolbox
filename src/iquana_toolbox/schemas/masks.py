@@ -4,7 +4,7 @@ import numpy as np
 from pycocotools import mask as maskUtils
 from pydantic import BaseModel, Field, computed_field
 
-from .labels import LabelHierarchy
+from iquana_toolbox.schemas.labels import LabelHierarchy
 
 
 class BinaryMask(BaseModel):

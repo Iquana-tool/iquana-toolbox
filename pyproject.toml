@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "This repository contains common functionality in the IQUANA tool. It defines pydantic schemas, as well as common methods."
 requires-python = ">=3.12"
 dependencies = [
+    "cachetools>=6.2.6",
     "numpy",
     "opencv-python",
     "pycocotools",

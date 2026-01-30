@@ -5,10 +5,10 @@ from typing import Union, Literal
 import numpy as np
 from pydantic import BaseModel, Field
 
-from .caches import get_image_from_url_cached
-from .labels import Label, LabelHierarchy
-from .masks import BinaryMask
-from .prompts import Prompts
+from iquana_toolbox.caches import get_image_from_url_cached
+from iquana_toolbox.schemas.labels import Label, LabelHierarchy
+from iquana_toolbox.schemas.masks import BinaryMask
+from iquana_toolbox.schemas.prompts import Prompts
 
 
 # --- Base Model ---

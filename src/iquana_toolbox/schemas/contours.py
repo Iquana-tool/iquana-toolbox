@@ -3,11 +3,10 @@ from logging import getLogger
 
 import cv2
 import numpy as np
-from pycocotools import mask as maskUtils
 from pydantic import BaseModel, field_validator, Field, model_validator
 
-from .masks import BinaryMask
-from .quantification import QuantificationModel
+from iquana_toolbox.schemas.masks import BinaryMask
+from iquana_toolbox.schemas.quantification import QuantificationModel
 
 logger = getLogger(__name__)
 

@@ -2,8 +2,8 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
-from .labels import LabelHierarchy
-from .training import TrainingProgress
+from iquana_toolbox.schemas.labels import LabelHierarchy
+from iquana_toolbox.schemas.training import TrainingProgress
 
 
 class BaseAIModel(BaseModel):
