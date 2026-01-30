@@ -75,4 +75,4 @@ class ModelCache:
 
     def check_if_loaded(self, user_identifier, model_registry_key):
         with self.lock:
-            return self.user_to_model_key[user_identifier] == model_registry_key
+            return user_identifier in self.user_to_model_key and self.user_to_model_key[user_identifier] == model_registry_key
