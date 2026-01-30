@@ -54,6 +54,7 @@ class ImageCache:
 class ModelCache:
     def __init__(self, size_limit=3):
         self.cache = LRUCache(maxsize=size_limit)
+        self.user_to_model_key = {}
         self.lock = threading.Lock()
 
     def get(self, user_identifier):
@@ -65,12 +66,13 @@ class ModelCache:
                 raise KeyError(f"Model for {user_identifier} not loaded.")
             return model
 
-    def put(self, user_identifier, model):
+    def put(self, user_identifier, model_registry_key, model):
         with self.lock:
             # If the cache is full, cachetools automatically
             # discards the Least Recently Used model.
             self.cache[user_identifier] = model
+            self.user_to_model_key[user_identifier] = model_registry_key
 
-    def check_if_loaded(self, user_identifier):
+    def check_if_loaded(self, user_identifier, model_registry_key):
         with self.lock:
-            return user_identifier in self.cache
+            return self.user_to_model_key[user_identifier] == model_registry_key
