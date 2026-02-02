@@ -90,6 +90,9 @@ class Metrics(BaseModel):
 
 
 class TrainingProgress(BaseModel):
+    status: Literal["PROGRESS", "STOPPED", "SUCCESS", "FAILED"] = Field(
+        default="PROGRESS",
+    )
     # Epoch fields
     epoch_count: int = Field(default=0, description="The total number of epochs trained.")
     best_epoch: int = Field(default=-1, description="Best epoch.")
