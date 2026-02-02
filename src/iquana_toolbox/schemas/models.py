@@ -35,7 +35,7 @@ class CompletionModel(BaseAIModel):
 
 class SemanticSegmentationModels(BaseAIModel):
     label_hierarchy: Optional[LabelHierarchy] = Field(
-        ...,
+        default=None,
         description="Label hierarchy that the model can predict. This does not mean"
                     "the model predicts hierarchical segments. It is used to check "
                     "what labels can be predicted in general. Eg. when the user makes"
@@ -43,8 +43,8 @@ class SemanticSegmentationModels(BaseAIModel):
                     "deprecated, as it is not trained to predict this. It is optional,"
                     "because base models dont predict anything."
     )
-    training_task_id: Optional[int] = Field(default=None, description="The id of the celery task for training.")
-    progress: Optional[TrainingProgress] = Field(
+    training_task_id: Optional[int] | None = Field(default=None, description="The id of the celery task for training.")
+    progress: Optional[TrainingProgress] | None = Field(
         default=None,
         description="A class to track the progress of training and get the history of values."
     )
