@@ -43,6 +43,7 @@ class SemanticSegmentationModels(BaseAIModel):
                     "deprecated, as it is not trained to predict this. It is optional,"
                     "because base models dont predict anything."
     )
+    training_task_id: Optional[int] = Field(..., description="The id of the celery task for training.")
     progress: Optional[TrainingProgress] = Field(
         default=None,
         description="A class to track the progress of training and get the history of values."
