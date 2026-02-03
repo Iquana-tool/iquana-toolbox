@@ -1,3 +1,4 @@
+import os
 import threading
 from functools import lru_cache
 from cachetools import TTLCache, LRUCache
@@ -8,15 +9,22 @@ import numpy as np
 @lru_cache(maxsize=128)
 def get_image_from_url_cached(url: str) -> np.ndarray:
     # This WILL persist across different requests
-    return cv2.imread(url)
+    if not os.path.exists(url) or not os.path.isfile(url):
+        raise FileNotFoundError(f"Image for {url} not found.")
+    img = cv2.imread(url)
+    if img is None:
+        raise ValueError(f"Image could not be loaded from {url}. Might be unsupported file type.")
+    return img
 
 
 class ImageCacheEntry:
     def __init__(self, image):
         self.image = image  # Image in HWC format (numpy array)
-        self.crop = [0., 0., 1., 1.]  # [min_x, min_y, max_x, max_y] in relative coordinates (0 to 1)
+        self.crop = None  # [min_x, min_y, max_x, max_y] in relative coordinates (0 to 1)
 
     def get_image(self):
+        if self.crop is None:
+            return self.image
         min_x = int(self.crop[0] * self.image.shape[1])
         min_y = int(self.crop[1] * self.image.shape[0])
         max_x = int(self.crop[2] * self.image.shape[1])
@@ -27,6 +35,9 @@ class ImageCacheEntry:
         assert 0 <= min_x < max_x <= 1, "Crop coordinates must be between 0 and 1 and min < max."
         assert 0 <= min_y < max_y <= 1, "Crop coordinates must be between 0 and 1 and min < max."
         self.crop = [min_x, min_y, max_x, max_y]
+
+    def unset_crop(self):
+        self.crop = None
 
 
 class ImageCache:
@@ -46,6 +57,11 @@ class ImageCache:
     def set_focused_crop(self, key, min_x, min_y, max_x, max_y):
         if key in self.cache:
             self.cache[key].set_crop(min_x, min_y, max_x, max_y)
+
+    def unset_focused_crop(self, key):
+        if key in self.cache:
+            self.cache[key].unset_crop()
+
 
     def __contains__(self, key):
         return key in self.cache
