@@ -9,7 +9,7 @@ class Image(BaseModel):
     id: int
     width: int
     height: int
-    mode: str
+    color_mode: str
     description: str | None = None
     file_path: str
     thumbnail_file_path: str
@@ -26,7 +26,7 @@ class Image(BaseModel):
             id=db_image.id,
             width=db_image.width,
             height=db_image.height,
-            mode=db_image.mode,
+            color_mode=db_image.color_mode,
             description=db_image.description,
             file_path=db_image.file_path,
             thumbnail_file_path=db_image.thumbnail_file_path,
