@@ -37,7 +37,7 @@ class Augmentations(BaseModel):
         default=True,
         description="Whether to use vertical flip of images."
     )
-    color_jitter: Optional[Tuple[float, float, float, float]] = Field(
+    color_jitter: Optional[Tuple[float, float, float, float]] | None = Field(
         default=None,
         description="Color jitter parameters (Brightness, Contrast, Saturation, Hue). If None, not applied."
     )
