@@ -43,9 +43,15 @@ class Augmentations(BaseModel):
     )
 
 
-class SemanticTrainingRequest(BaseModel):
+class SemanticTrainingData(BaseModel):
     image_urls: list[str] = Field(..., description="List of image urls to train on.")
     mask_urls: list[str] = Field(..., description="List of mask urls to train on.")
+    label_hierarchy: LabelHierarchy = Field(
+        description="Label hierarchy to be used for training and evaluation."
+    )
+
+
+class SemanticTrainingConfig(BaseModel):
     val_ratio: float = Field(default=0.1, description="Ratio of training data to validation data.")
     image_size: tuple = Field((224, 224), description="Image size.")
     loss: Literal["cross_entropy", "dice_loss", "focal_loss"] = Field(
@@ -53,16 +59,15 @@ class SemanticTrainingRequest(BaseModel):
         description="The loss the model should be trained on. This is currently hardcoded to three options: "
                     "cross_entropy, dice_loss and focal_loss."
     )
-    model_registry_key: str = Field(default="unet", description="A key from the model registry")
-    label_hierarchy: LabelHierarchy = Field(
-        description="Label hierarchy to be used for training and evaluation."
-    )
     num_epochs: int = Field(default=100, description="Number of epochs to train.")
 
     # Hyperparameters; Not sure if we should concern users with this kind of stuff. However, allowing more control
     # can only be better.
     hyper_params: Optional[HyperParams] = Field(default_factory=HyperParams, description="Hyperparameters")
     augmentations: Optional[Augmentations] = Field(default_factory=Augmentations, description="Augmentations")
+
+class SemanticTrainingRequest(SemanticTrainingData, SemanticTrainingConfig):
+    model_registry_key: str = Field(default="unet", description="A key from the model registry")
 
 
 class Metrics(BaseModel):
