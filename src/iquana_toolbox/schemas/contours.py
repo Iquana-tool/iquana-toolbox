@@ -87,7 +87,7 @@ class Contour(BaseModel):
         new_mask = np.logical_and(bin_mask, allowed_pixels)
         return Contour.from_binary_mask(new_mask, only_return_biggest_contour=True, **self.model_dump(
             exclude={"x", "y", "path", "quantification"}
-        ))
+        )), not(np.all(bin_mask == new_mask))
 
 
     def get_children_by_label(self, label_id):

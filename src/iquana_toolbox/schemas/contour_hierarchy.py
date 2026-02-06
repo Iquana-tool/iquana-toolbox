@@ -20,13 +20,17 @@ def convert_contours_to_binary_mask(contours: list[Contour]) -> np.ndarray:
     return new_mask
 
 
-
 class ContourHierarchy(BaseModel):
     """ A hierarchy of contours. """
     root_contours: list[Contour] = Field(default=[], description="List of objects represented by their contours.")
-    id_to_contour: dict[int, Contour] = Field(default=None, description="Dict mapping contour id to object.")
-    label_id_to_contours: dict[int | None, list[Contour]] = Field(default=defaultdict(list),
-                                                           description="Dict mapping label id to a list of objects.")
+    id_to_contour: dict[int, Contour] = Field(
+        default=defaultdict(list),
+        description="Dict mapping contour id to object."
+    )
+    label_id_to_contours: dict[int | None, list[Contour]] = Field(
+        default=defaultdict(list),
+        description="Dict mapping label id to a list of objects."
+    )
 
     @classmethod
     def from_query(cls, all_db_entries, width, height) -> "ContourHierarchy":
@@ -106,7 +110,6 @@ class ContourHierarchy(BaseModel):
             self.label_id_to_contours[contour.label_id].append(contour)
         return contour
 
-
     def dump_contours_as_list(self, breadth_first: bool = True) -> list[Contour]:
         """ Dump all contours in the hierarchy as a list. Can be done in breadth first or depth first order. """
         contours_list = []
@@ -122,9 +125,9 @@ class ContourHierarchy(BaseModel):
 
     @classmethod
     def from_semantic_mask(cls,
-                                 np_mask: np.ndarray,
-                                 label_hierarchy: LabelHierarchy,
-                                 added_by: str,):
+                           np_mask: np.ndarray,
+                           label_hierarchy: LabelHierarchy,
+                           added_by: str, ):
         """
         Get a contour hierarchy from a mask and a label hierarchy. The hierarchy will respect both the label
         hierarchy as well as spatial hierarchy, i.e. each child contour lies within its parent.
