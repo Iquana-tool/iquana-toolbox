@@ -97,7 +97,7 @@ class ContourHierarchy(BaseModel):
             allowed_pixels,
             self.get_parent_mask(contour.parent_id)
         )
-        contour = contour.fit_to_mask(allowed_pixels)
+        contour, changed = contour.fit_to_mask(allowed_pixels)
         if contour.parent_id is None:
             # We add a root contour
             self.root_contours.append(contour)
@@ -108,7 +108,7 @@ class ContourHierarchy(BaseModel):
             self.id_to_contour[contour.parent_id].add_child(contour)
             self.id_to_contour[contour.id] = contour
             self.label_id_to_contours[contour.label_id].append(contour)
-        return contour
+        return contour, changed
 
     def dump_contours_as_list(self, breadth_first: bool = True) -> list[Contour]:
         """ Dump all contours in the hierarchy as a list. Can be done in breadth first or depth first order. """
