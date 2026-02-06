@@ -81,8 +81,8 @@ class Contour(BaseModel):
             negative ones indicate the opposite. Returns the new contour object
         """
         bin_mask = self.to_binary_mask(
-            width=allowed_pixels.shape[0],
-            height=allowed_pixels.shape[1]
+            width=allowed_pixels.shape[1],
+            height=allowed_pixels.shape[0]
         )
         new_mask = np.logical_and(bin_mask, allowed_pixels)
         return Contour.from_binary_mask(new_mask, only_return_biggest_contour=True, **self.model_dump(

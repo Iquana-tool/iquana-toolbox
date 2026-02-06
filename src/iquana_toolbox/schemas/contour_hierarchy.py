@@ -89,20 +89,25 @@ class ContourHierarchy(BaseModel):
         if parent_id is None:
             return np.ones(shape, dtype=np.uint8)
         else:
-            return self.id_to_contour[parent_id].to_binary_mask(shape[1], shape[0])
+            return self.id_to_contour[parent_id].to_binary_mask(shape[0], shape[1])
 
     def add_contour(self, contour: Contour):
         # Get a binary mask indicating which pixels can be inside the contour
         # Gets all contours on the same level
         resolution_shape = (1000, 1000)
-        allowed_pixels = np.logical_not(
+        allowed_pixels_level = np.logical_not(
             self.get_children_mask(contour.parent_id, resolution_shape)
         )
         # Get the parent contour. New contour must be inside it!
         allowed_pixels = np.logical_and(
-            allowed_pixels,
+            allowed_pixels_level,
             self.get_parent_mask(contour.parent_id, resolution_shape)
         )
+        if not np.any(allowed_pixels):
+            print("Could not add contour! No pixels after fitting to parents and other contours!")
+            print(f"Allowed pixels on level: {np.sum(allowed_pixels)}")
+            print(f"Allowed pixels from parent: {np.sum(self.get_parent_mask(contour.parent_id, resolution_shape))}")
+            print(f"Allowed pixels after fitting: {np.sum(allowed_pixels)}")
         contour, changed = contour.fit_to_mask(allowed_pixels)
         if contour.parent_id is None:
             # We add a root contour
