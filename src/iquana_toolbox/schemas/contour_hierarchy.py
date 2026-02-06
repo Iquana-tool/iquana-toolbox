@@ -104,6 +104,7 @@ class ContourHierarchy(BaseModel):
             self.id_to_contour[contour.parent_id].add_child(contour)
             self.id_to_contour[contour.id] = contour
             self.label_id_to_contours[contour.label_id].append(contour)
+        return contour
 
 
     def dump_contours_as_list(self, breadth_first: bool = True) -> list[Contour]:
