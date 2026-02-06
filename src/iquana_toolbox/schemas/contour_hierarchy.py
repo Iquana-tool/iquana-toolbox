@@ -103,11 +103,12 @@ class ContourHierarchy(BaseModel):
             allowed_pixels_level,
             self.get_parent_mask(contour.parent_id, resolution_shape)
         )
+        print(f"Allowed pixels on level: {np.sum(allowed_pixels)}")
+        print(f"Allowed pixels from parent: {np.sum(self.get_parent_mask(contour.parent_id, resolution_shape))}")
+        print(f"Allowed pixels after fitting: {np.sum(allowed_pixels)}")
         if not np.any(allowed_pixels):
             print("Could not add contour! No pixels after fitting to parents and other contours!")
-            print(f"Allowed pixels on level: {np.sum(allowed_pixels)}")
-            print(f"Allowed pixels from parent: {np.sum(self.get_parent_mask(contour.parent_id, resolution_shape))}")
-            print(f"Allowed pixels after fitting: {np.sum(allowed_pixels)}")
+
         contour, changed = contour.fit_to_mask(allowed_pixels)
         if contour.parent_id is None:
             # We add a root contour
