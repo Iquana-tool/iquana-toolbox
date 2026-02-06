@@ -9,6 +9,18 @@ from iquana_toolbox.schemas.labels import LabelHierarchy
 from iquana_toolbox.schemas.contours import get_contours_from_binary_mask
 
 
+def convert_contours_to_binary_mask(contours: list[Contour]) -> np.ndarray:
+    new_mask = np.zeros((1000, 1000), dtype=np.uint8)
+    for contour in contours:
+        bin_mask = contour.to_binary_mask(
+            height=new_mask.shape[1],
+            width=new_mask.shape[0]
+        )
+        new_mask = np.logical_or(new_mask, bin_mask)
+    return new_mask
+
+
+
 class ContourHierarchy(BaseModel):
     """ A hierarchy of contours. """
     root_contours: list[Contour] = Field(default=[], description="List of objects represented by their contours.")
@@ -55,6 +67,44 @@ class ContourHierarchy(BaseModel):
             id_to_contour=id_to_contour,
             label_id_to_contours=label_id_to_contours,
         )
+
+    def get_contours_on_this_level(self, parent_id):
+        if parent_id is None:
+            return self.root_contours
+        else:
+            return self.id_to_contour[parent_id].children
+
+    def get_parent_mask(self, parent_id):
+        if parent_id is None:
+            return np.ones((1000, 1000), dtype=np.uint8)
+        else:
+            return self.id_to_contour[parent_id].to_binary_mask(1000, 1000)
+
+    def add_contour(self, contour: Contour):
+        # Get a binary mask indicating which pixels can be inside the contour
+        # Gets all contours on the same level
+        allowed_pixels = np.logical_not(
+            convert_contours_to_binary_mask(
+                self.get_contours_on_this_level(contour.parent_id)
+            )
+        )
+        # Get the parent contour. New contour must be inside it!
+        allowed_pixels = np.logical_and(
+            allowed_pixels,
+            self.get_parent_mask(contour.parent_id)
+        )
+        contour = contour.fit_to_mask(allowed_pixels)
+        if contour.parent_id is None:
+            # We add a root contour
+            self.root_contours.append(contour)
+            self.id_to_contour[contour.id] = contour
+            self.label_id_to_contours[contour.label_id].append(contour)
+        else:
+            # We add a child contour
+            self.id_to_contour[contour.parent_id].add_child(contour)
+            self.id_to_contour[contour.id] = contour
+            self.label_id_to_contours[contour.label_id].append(contour)
+
 
     def dump_contours_as_list(self, breadth_first: bool = True) -> list[Contour]:
         """ Dump all contours in the hierarchy as a list. Can be done in breadth first or depth first order. """

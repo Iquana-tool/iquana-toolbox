@@ -73,6 +73,23 @@ class Contour(BaseModel):
     def points(self) -> np.ndarray[tuple[float, float]]:
         return np.array(list(zip(self.x, self.y)))
 
+    def fit_to_mask(
+            self,
+            allowed_pixels
+    ):
+        """ Fit the contour to a binary mask, where positive values indicate that the contour can include this pixel and
+            negative ones indicate the opposite. Returns the new contour object
+        """
+        bin_mask = self.to_binary_mask(
+            width=allowed_pixels.shape[0],
+            height=allowed_pixels.shape[1]
+        )
+        new_mask = np.logical_and(bin_mask, allowed_pixels)
+        return Contour.from_binary_mask(new_mask, only_return_biggest_contour=True, **self.model_dump(
+            exclude={"x", "y", "path", "quantification"}
+        ))
+
+
     def get_children_by_label(self, label_id):
         children = []
         for child in self.children:
