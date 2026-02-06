@@ -36,8 +36,8 @@ class Contour(BaseModel):
     label_id: int | None = Field(default=None, description="ID of the label of the mask. None for unlabelled contour.")
     parent_id: int | None = Field(default=None, description="ID of the parent contour. None if the contour has "
                                                             "no parent")
-    children: list["Contour"] = Field(default=[], description="List of objects represented by their contours.")
-    reviewed_by: list[str] = Field(default=[], description="List of users who reviewed the contour.")
+    children: list["Contour"] = Field(default_factory=list, description="List of objects represented by their contours.")
+    reviewed_by: list[str] = Field(default_factory=list, description="List of users who reviewed the contour.")
 
     x: list[float] = Field(default_factory=list, description="X-coordinates of the contour.")
     y: list[float] = Field(default_factory=list, description="Y-coordinates of the contour.")
