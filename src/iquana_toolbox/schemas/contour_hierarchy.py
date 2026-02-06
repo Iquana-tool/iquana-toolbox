@@ -22,13 +22,13 @@ def convert_contours_to_binary_mask(contours: list[Contour]) -> np.ndarray:
 
 class ContourHierarchy(BaseModel):
     """ A hierarchy of contours. """
-    root_contours: list[Contour] = Field(default=[], description="List of objects represented by their contours.")
+    root_contours: list[Contour] = Field(default_factory=list, description="List of objects represented by their contours.")
     id_to_contour: dict[int, Contour] = Field(
-        default=defaultdict(list),
+        default_factory=dict,
         description="Dict mapping contour id to object."
     )
     label_id_to_contours: dict[int | None, list[Contour]] = Field(
-        default=defaultdict(list),
+        default_factory=dict,
         description="Dict mapping label id to a list of objects."
     )
 
@@ -102,12 +102,12 @@ class ContourHierarchy(BaseModel):
             # We add a root contour
             self.root_contours.append(contour)
             self.id_to_contour[contour.id] = contour
-            self.label_id_to_contours[contour.label_id].append(contour)
+            self.label_id_to_contours.setdefault(contour.label_id, []).append(contour)
         else:
             # We add a child contour
             self.id_to_contour[contour.parent_id].add_child(contour)
             self.id_to_contour[contour.id] = contour
-            self.label_id_to_contours[contour.label_id].append(contour)
+            self.label_id_to_contours.setdefault(contour.label_id, []).append(contour)
         return contour, changed
 
     def dump_contours_as_list(self, breadth_first: bool = True) -> list[Contour]:
@@ -207,7 +207,7 @@ class ContourHierarchy(BaseModel):
 
     def get_label_quantification(self, label_id):
         # First get all relevant contours
-        contours = self.label_id_to_contours[label_id]
+        contours = self.label_id_to_contours.get(label_id, [])
 
         # Second track all relevant metrics
         metrics = defaultdict(list)
