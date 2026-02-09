@@ -157,6 +157,7 @@ class TrainingProgress(BaseModel):
     def is_new_best_epoch(self):
         # Check the condition for updating the best epoch, aka is it greater or smaller than the best seen value
         condition = (
+            self.monitored_metric_best_value is None or
                 (self.monitored_metric_lower_is_better and self.monitored_metric_latest_value < self.monitored_metric_best_value)
                 or
                 (not self.monitored_metric_lower_is_better and self.monitored_metric_latest_value > self.monitored_metric_best_value)
