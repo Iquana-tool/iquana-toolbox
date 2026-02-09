@@ -134,10 +134,10 @@ class TrainingProgress(BaseModel):
     def training_step(self, train_metrics, val_metrics=None) -> bool:
         """ Update training step information. Returns true if the new epoch was better than the best epoch yet,
         else false. """
-        self.progress.train_metrics.add_metrics(train_metrics)
+        self.train_metrics.add_metrics(train_metrics)
         if val_metrics is not None:
-            self.progress.val_metrics.add_metrics(val_metrics)
-            if self.monitor_type == "val":
+            self.val_metrics.add_metrics(val_metrics)
+            if self.monitored_metric_type == "val":
                 raise ValueError("Best epoch determination needs val metrics, but none were given.")
 
         is_new_best = self.is_new_best_epoch()
@@ -152,11 +152,7 @@ class TrainingProgress(BaseModel):
             return self.train_metrics[self.monitored_metric][-1]
 
     def add_test_metrics(self, test_metrics):
-        difference = len(self.train_metrics) - len(self.test_metrics)
-        for _ in range(difference):
-            empty_metrics = {k: None for k in test_metrics.keys()}
-            self.test_metrics.add_metrics(empty_metrics)
-        self.test_metrics.add_metrics(test_metrics)
+        raise NotImplementedError
 
     def is_new_best_epoch(self):
         # Check the condition for updating the best epoch, aka is it greater or smaller than the best seen value
