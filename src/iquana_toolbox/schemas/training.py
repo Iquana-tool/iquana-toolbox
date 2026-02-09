@@ -115,7 +115,7 @@ class TrainingProgress(BaseModel):
         default=True,
         description="Whether the metric gets better with decreasing (True) or increasing (False) values."
     )
-    monitored_metric_best_value: float = Field(default=None, description="Value of the best epoch metric.")
+    monitored_metric_best_value: float | None = Field(default=None, description="Value of the best epoch metric.")
 
     # Tracking metrics
     train_metrics: Metrics = Field(default_factory=Metrics,
