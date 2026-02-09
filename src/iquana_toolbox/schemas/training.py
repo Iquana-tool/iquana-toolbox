@@ -87,7 +87,7 @@ class Metrics(BaseModel):
     def get_epoch_metrics(self, epoch):
         return {k: v[epoch] for k, v in self.metrics.items()}
 
-    def __getattr__(self, item):
+    def __getitem__(self, item):
         return self.metrics[item]
 
     def __len__(self):
