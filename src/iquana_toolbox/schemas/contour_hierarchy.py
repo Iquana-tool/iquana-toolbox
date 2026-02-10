@@ -168,7 +168,7 @@ class ContourHierarchy(BaseModel):
             contour_entries = []
 
             # Second: Iterate through the models and check for parent links
-            parent = label_hierarchy.get_parent_by_value_of_child(label)
+            parent = label_hierarchy.get_parent_by_value_of_child(label.value)
             if parent is not None:
                 for contour, entry in zip(contour_models, contour_entries):
                     # For each contour, that we found, we check:
