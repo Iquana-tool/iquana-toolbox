@@ -38,11 +38,8 @@ class BaseServiceRequest(BaseImageRequest):
 
 
 class SemanticSegmentationRequest(BaseServiceRequest):
-    """ Expands the BaseServiceRequest with a label hierarchy for the model."""
-    label_hierarchy: LabelHierarchy = Field(
-        ..., title="Label hierarchy",
-        description="A hierarchy of the labels. Describes which labels should be present in the mask."
-    )
+    """ A Semantic Segmentation Inference Request."""
+    pass
 
 
 class MultiSemanticSegmentationRequest(BaseModel):
