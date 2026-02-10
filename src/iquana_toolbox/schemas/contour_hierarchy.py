@@ -185,7 +185,7 @@ class ContourHierarchy(BaseModel):
                         logger.error("Contour could not be added to a parent contour")
             else:
                 root_contours.extend(contour_models)
-            contour_models_with_label_id[label] = contour_models
+            contour_models_with_label_id[label.id] = contour_models
         return cls(
             root_contours=root_contours,
             id_to_contour=id_to_contour,
