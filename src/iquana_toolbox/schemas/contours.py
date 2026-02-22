@@ -97,6 +97,19 @@ class Contour(BaseModel):
                 children.append(child)
         return children
 
+    def get_bbox(self, bbox_format="xyxy", size=None):
+        min_x = np.min(self.x)
+        min_y = np.min(self.y)
+        max_x = np.max(self.x)
+        max_y = np.max(self.y)
+
+        if size is not None:
+            min_x *= size[1]
+            min_y *= size[0]
+            max_x *= size[1]
+            max_y *= size[0]
+        return [min_x, min_y, max_x, max_y]
+
     def compute_path(self, image_width: int, image_height: int):
         """Compute SVG path from normalized coordinates (0-1) to pixel coordinates."""
         if not self.x or not self.y or len(self.x) == 0:
@@ -136,6 +149,39 @@ class Contour(BaseModel):
         rescaled_x = (np.array(self.x) * width).astype(int)
         rescaled_y = (np.array(self.y) * height).astype(int)
         return np.expand_dims(np.array(list(zip(rescaled_x, rescaled_y))), axis=1)
+
+    def to_coco_annotation(self, height, width, image_id):
+        """
+        Return the contour as a coco annotation.
+        Note: When converting to coco, you will lose hierarchical information.
+        """
+        # 1. Rescale and flatten coordinates: [x1, y1, x2, y2, ...]
+        # COCO uses absolute pixel coordinates.
+        segmentation = []
+        for xi, yi in zip(self.x, self.y):
+            segmentation.extend([float(xi * width), float(yi * height)])
+
+        # 2. Calculate Bounding Box [min_x, min_y, width, height]
+        # We can use the rescaled values to ensure the bbox matches the segmentation
+        bbox = self.get_bbox(size=[height, width])
+
+        # 3. Use area from quantification or calculate via Shoelace
+        # QuantificationModel likely already has area in pixels.
+        area = getattr(self.quantification, "area", 0.0)
+
+        return {
+            "id": self.id,
+            "image_id": image_id,
+            "category_id": self.label_id,
+            "segmentation": segmentation,
+            "area": float(area),
+            "bbox": bbox,
+            "iscrowd": 0,
+            "attributes": {
+                "confidence": self.confidence,
+                "added_by": self.added_by
+            }
+        }
 
     @classmethod
     def from_normalized_cv_contour(
