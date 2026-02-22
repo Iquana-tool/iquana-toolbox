@@ -83,7 +83,7 @@ class CompletionRequest(BaseServiceRequest):
         return combined_mask
 
     def get_bboxes(self,
-                   format: Literal["xywh", "x1y1x2y2", "cxcywh"] = "x1y1x2y2",
+                   format: Literal["xywh", "xyxy", "cxcywh"] = "xyxy",
                    relative_coordinates: bool = True,
                    resize_to: None | tuple[int, int] = None) \
             -> list[list[float]]:
@@ -104,7 +104,7 @@ class CompletionRequest(BaseServiceRequest):
 
             if format == "xywh":
                 bbox = [x_min, y_min, x_max - x_min, y_max - y_min]
-            elif format == "x1y1x2y2":
+            elif format == "xyxy":
                 bbox = [x_min, y_min, x_max, y_max]
             elif format == "cxcywh":
                 w = x_max - x_min
