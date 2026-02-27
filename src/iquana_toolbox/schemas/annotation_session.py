@@ -30,6 +30,7 @@ class ClientMessageType(StrEnum):
 
 class ServerMessageType(StrEnum):
     SESSION_INITIALIZED = "session_initialized"  # Session has been initialized, gives info about running backends
+    OBJECTS = "objects"  # Gives all objects of the mask
     OBJECT_ADDED = "object_added"  # Send a newly added object
     OBJECT_REMOVED = "object_removed" # Tell which object has been deleted
     OBJECT_MODIFIED = "object_modified" # Tell which object has been modified and what has been modified.
