@@ -100,6 +100,16 @@ class LabelHierarchy(BaseModel):
 
         return self.root_level_labels == other.root_level_labels
 
+    def is_label_valid(self, label_id, parent_label_id=None):
+        """ Check whether a label id is valid for this hierarchy. """
+        label_exists = label_id in self.id_to_label_object
+        if parent_label_id is not None:
+            parent_label = self.id_to_label_object[parent_label_id]
+            label_is_child = label_id in [child.id for child in parent_label.children]
+        else:
+            label_is_child = True
+        return label_exists and label_is_child
+
     def get_parent_by_id_of_child(self, child_id):
         child = self.id_to_label_object[child_id]
         if child.parent_id is not None:
