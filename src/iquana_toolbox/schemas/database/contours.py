@@ -5,8 +5,8 @@ import cv2
 import numpy as np
 from pydantic import BaseModel, field_validator, Field, model_validator
 
-from iquana_toolbox.schemas.masks import BinaryMask
-from iquana_toolbox.schemas.quantification import QuantificationModel
+from iquana_toolbox.schemas.database.masks import BinaryMask
+from iquana_toolbox.schemas.database.quantification import QuantificationModel
 
 logger = getLogger(__name__)
 
