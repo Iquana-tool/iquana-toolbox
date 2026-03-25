@@ -2,7 +2,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
-from iquana_toolbox.schemas.labels import LabelHierarchy
+from iquana_toolbox.schemas.database.labels import LabelHierarchy
 from iquana_toolbox.schemas.training import TrainingProgress
 
 

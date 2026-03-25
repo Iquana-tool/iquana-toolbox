@@ -4,9 +4,9 @@ import cv2
 import numpy as np
 from pydantic import BaseModel, Field
 
-from iquana_toolbox.schemas.contours import Contour, logger
-from iquana_toolbox.schemas.labels import LabelHierarchy
-from iquana_toolbox.schemas.contours import get_contours_from_binary_mask
+from iquana_toolbox.schemas.database.contours import Contour, logger
+from iquana_toolbox.schemas.database.labels import LabelHierarchy
+from iquana_toolbox.schemas.database.contours import get_contours_from_binary_mask
 
 
 def logical_or_contours(contours: list[Contour], shape: tuple[int, int]) -> np.ndarray:

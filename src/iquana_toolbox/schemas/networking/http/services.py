@@ -1,13 +1,13 @@
 import warnings
 from functools import cached_property
-from typing import Union, Literal
+from typing import Union, Literal, Optional
 
 import numpy as np
 from pydantic import BaseModel, Field
 
 from iquana_toolbox.caches import get_image_from_url_cached
-from iquana_toolbox.schemas.labels import Label, LabelHierarchy
-from iquana_toolbox.schemas.masks import BinaryMask
+from iquana_toolbox.schemas.database.labels import Label, LabelHierarchy
+from iquana_toolbox.schemas.database.masks import BinaryMask
 from iquana_toolbox.schemas.prompts import Prompts
 
 
@@ -116,3 +116,20 @@ class CompletionRequest(BaseServiceRequest):
                 raise ValueError("Unsupported format: {}".format(format))
             bboxes.append(bbox)
         return bboxes
+
+
+class ServiceRegistrationRequest(BaseModel):
+    """Request to register the service with the main backend."""
+    backend_url: str
+    celery_broker_url: str  # e.g., redis://celery-host:6379/0
+    mlflow_tracking_uri: str  # e.g., http://mlflow-host:5000
+    registration_token: str  # For authentication
+    service_name: Optional[str] = None
+    api_key: Optional[str] = None  # Optional API key for service access
+
+
+class ServiceRegistrationResponse(BaseModel):
+    """Response after service registration."""
+    success: bool
+    message: str
+    service_id: Optional[str] = None
