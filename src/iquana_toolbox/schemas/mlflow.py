@@ -24,6 +24,7 @@ class MLFlowModelRegistry:
             :param info: additional information about the model. Eg. description, name etc.
             :param tags: tags associated with the model. Eg. task: prompted_segmentation, instance_segmentation etc.
         """
+        mlflow.set_tracking_uri(self.tracking_uri)
         # Store model metadata in MLFlow
         with mlflow.start_run():
             # Log the model using MLFlow
@@ -80,3 +81,13 @@ class MLFlowModelRegistry:
             }
         except Exception as e:
             raise ValueError(f"Failed to get info for model '{model_identifier}': {str(e)}")
+
+    def ensure_models_are_registered(self, models: dict[str, dict]):
+        """ Ensure that all models are registered in the registry. Registers all unregistered models. """
+        for model_id, data in models.items():
+            model = data["model"]
+            info = data["info"]
+            tags = data["tags"]
+            if not self.check_registered(model_id):
+                self.register_model(model_id, model, info, tags)
+
