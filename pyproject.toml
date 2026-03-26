@@ -5,6 +5,7 @@ description = "This repository contains common functionality in the IQUANA tool.
 requires-python = ">=3.12"
 dependencies = [
     "cachetools>=6.2.6",
+    "mlflow>=3.10.1",
     "numpy",
     "opencv-python",
     "pycocotools",
