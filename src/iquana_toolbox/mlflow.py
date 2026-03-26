@@ -1,13 +1,17 @@
+import threading
+
 import mlflow
+from cachetools import TTLCache
 from mlflow import MlflowClient
 
 
 class MLFlowModelRegistry:
-    def __init__(self, tracking_uri):
+    def __init__(self, tracking_uri, cache_maxsize: int = 8, cache_ttl_seconds: int = 3600):
         """Registry to hold and manage multiple models."""
         self.tracking_uri = tracking_uri
         self.client = MlflowClient(tracking_uri=tracking_uri)
-        self._model_cache = {}  # Cache for loaded models
+        self._model_cache = TTLCache(maxsize=cache_maxsize, ttl=cache_ttl_seconds)
+        self._cache_lock = threading.Lock()
 
     def register_model(
             self,
@@ -28,17 +32,10 @@ class MLFlowModelRegistry:
         # Store model metadata in MLFlow
         with mlflow.start_run():
             # Log the model using MLFlow
-            mlflow.pytorch.log_model(model, model_identifier)
-            
-            # Log additional info if provided
-            if info:
-                for key, value in info.items():
-                    mlflow.log_param(key, value)
-            
-            # Set tags if provided
-            if tags:
-                for key, value in tags.items():
-                    mlflow.set_tag(key, value)
+            mlflow.pytorch.log_model(model,
+                                     tags=tags,
+                                     params=info,
+                                     model_id=model_identifier)
     
     def check_registered(self, model_identifier: str):
         """ Check if a model is registered in the registry. """
@@ -54,19 +51,19 @@ class MLFlowModelRegistry:
     def get_model(self, model_identifier: str):
         """ Get a model from the registry by its identifier. """
         # This method should be cached such that a model is not reinitialized each time.
-        if model_identifier in self._model_cache:
-            return self._model_cache[model_identifier]
-        
-        try:
-            # Get the latest version of the registered model
-            model_uri = f"models:/{model_identifier}/latest"
-            model = mlflow.pytorch.load_model(model_uri)
-            
-            # Cache the model
-            self._model_cache[model_identifier] = model
-            return model
-        except Exception as e:
-            raise ValueError(f"Failed to load model '{model_identifier}': {str(e)}")
+        with self._cache_lock:
+            model = self._model_cache.get(model_identifier)
+            if model is not None:
+                return model
+
+            try:
+                mlflow.set_tracking_uri(self.tracking_uri)
+                model_uri = f"models:/{model_identifier}/latest"
+                model = mlflow.pytorch.load_model(model_uri)
+                self._model_cache[model_identifier] = model
+                return model
+            except Exception as e:
+                raise ValueError(f"Failed to load model '{model_identifier}': {str(e)}")
     
     def get_info(self, model_identifier: str):
         """ Get a model info from the registry by its identifier. """
