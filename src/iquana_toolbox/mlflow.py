@@ -86,6 +86,12 @@ class MLFlowModelRegistry:
         except Exception:
             logger.exception("Failed to check registration status for model '%s'.", model_identifier)
             return False
+
+    def clone_registered_model(self, new_identifier: str, old_identifier: str):
+        """
+            Clone a model and make a new registry entry. Useful for tracking user specific models.
+        """
+        # TODO: Implement this
     
     def get_model(self, model_identifier: str, version_or_alias: str = 'latest'):
         """ Get a model from the registry by its identifier. """
@@ -128,6 +134,7 @@ class MLFlowModelRegistry:
                     "last_updated_timestamp": model.last_updated_timestamp,
                     "description": model.description,
                     "tags": model.tags,
+                    "versions": model.latest_versions
                 })
             logger.debug("Found %d models matching tags.", len(model_infos))
             return model_infos
@@ -135,7 +142,7 @@ class MLFlowModelRegistry:
             logger.exception("Failed to search for models with tags: %s", tags)
             raise ValueError(f"Failed to search for models with tags {tags}: {str(e)}")
     
-    def get_info(self, model_identifier: str):
+    def get_model_info(self, model_identifier: str):
         """ Get a model info from the registry by its identifier. """
         try:
             logger.debug("Fetching model info for '%s'.", model_identifier)
