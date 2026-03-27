@@ -86,7 +86,7 @@ class MLFlowModelRegistry:
         logger.info(
             "Model '%s' registered as version '%s'.",
             model_identifier,
-            info.registered_model_version.version,
+            info.registered_model_version,
         )
     
     def check_registered(self, model_identifier: str):
