@@ -106,6 +106,34 @@ class MLFlowModelRegistry:
             except Exception as e:
                 logger.exception("Failed to load model '%s' from MLflow.", model_identifier)
                 raise ValueError(f"Failed to load model '{model_identifier}': {str(e)}")
+
+    @staticmethod
+    def _build_tag_filter(tags: dict):
+        """ Build an MLflow filter string for searching models by tags. """
+        filters = []
+        for key, value in tags.items():
+            filters.append(f"tags.{key} = '{value}'")
+        return " AND ".join(filters)
+
+    def get_models_via_tags(self, tags: dict):
+        """ Get models from the registry that match the given tags. """
+        try:
+            logger.debug("Searching for models with tags: %s", tags)
+            registered_models = self.client.search_registered_models(filter_string=self._build_tag_filter(tags))
+            model_infos = []
+            for model in registered_models:
+                model_infos.append({
+                    "name": model.name,
+                    "creation_timestamp": model.creation_timestamp,
+                    "last_updated_timestamp": model.last_updated_timestamp,
+                    "description": model.description,
+                    "tags": model.tags,
+                })
+            logger.debug("Found %d models matching tags.", len(model_infos))
+            return model_infos
+        except Exception as e:
+            logger.exception("Failed to search for models with tags: %s", tags)
+            raise ValueError(f"Failed to search for models with tags {tags}: {str(e)}")
     
     def get_info(self, model_identifier: str):
         """ Get a model info from the registry by its identifier. """
