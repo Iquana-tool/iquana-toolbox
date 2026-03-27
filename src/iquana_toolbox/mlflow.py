@@ -79,22 +79,14 @@ class MLFlowModelRegistry:
                     self.client.set_registered_model_tag(model_identifier, key, value)
 
         with mlflow.start_run() as run:
-            artifact_path = "model"
-            mlflow.pytorch.log_model(pytorch_model=model, registered_model_name=model_identifier)
-            source = mlflow.get_artifact_uri(artifact_path)
-            source = self._normalize_model_source_uri(source)
-            model_version = self.client.create_model_version(
-                name=model_identifier,
-                source=source,
-                run_id=run.info.run_id,
-            )
+            info = mlflow.pytorch.log_model(pytorch_model=model, registered_model_name=model_identifier)
 
         self._invalidate_model_cache(model_identifier)
 
         logger.info(
             "Model '%s' registered as version '%s'.",
             model_identifier,
-            model_version.version,
+            info.registered_model_version.version,
         )
     
     def check_registered(self, model_identifier: str):
