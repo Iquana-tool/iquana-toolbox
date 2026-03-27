@@ -87,9 +87,8 @@ class MLFlowModelRegistry:
             logger.exception("Failed to check registration status for model '%s'.", model_identifier)
             return False
     
-    def get_model(self, model_identifier: str):
+    def get_model(self, model_identifier: str, version_or_alias: str = 'latest'):
         """ Get a model from the registry by its identifier. """
-        # This method should be cached such that a model is not reinitialized each time.
         with self._cache_lock:
             model = self._model_cache.get(model_identifier)
             if model is not None:
@@ -99,7 +98,7 @@ class MLFlowModelRegistry:
             try:
                 logger.info("Cache miss for model '%s'. Loading from MLflow.", model_identifier)
                 mlflow.set_tracking_uri(self.tracking_uri)
-                model_uri = f"models:/{model_identifier}/latest"
+                model_uri = f"models:/{model_identifier}/{version_or_alias}"
                 model = mlflow.pytorch.load_model(model_uri)
                 self._model_cache[model_identifier] = model
                 logger.info("Loaded and cached model '%s' from '%s'.", model_identifier, model_uri)
