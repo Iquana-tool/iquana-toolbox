@@ -5,7 +5,7 @@ from pathlib import Path
 import mlflow
 from cachetools import TTLCache
 from mlflow import MlflowClient
-
+from mlflow.entities.model_registry import ModelVersion
 
 logger = logging.getLogger(__name__)
 
@@ -200,64 +200,29 @@ class MLFlowModelRegistry:
             raise ValueError(
                 f"Failed to clone registered model '{old_identifier}' to '{new_identifier}': {str(e)}"
             )
-    
-    def get_model_by_version(self, model_identifier: str, version: str):
-        """ Get a model from the registry by its identifier and version. """
+
+    def _get_model_cached(self, version: ModelVersion):
         with self._cache_lock:
-            model = self._model_cache.get((model_identifier, version))
+            model = self._model_cache.get((version.name, version.version))
             if model is not None:
-                logger.debug("Cache hit for model '%s'.", model_identifier)
+                logger.debug(f"Cache hit for model '{version.name}-{version.version}'")
+                return model
+            else:
+                logger.info(f"Cache miss for model '{version.name}-{version.version}'. Loading from MLflow.")
+                mlflow.set_tracking_uri(self.tracking_uri)
+                model = mlflow.pytorch.load_model(version.source)
+                self._model_cache[(version.name, version.version)] = model
                 return model
 
-            try:
-                logger.info("Cache miss for model '%s'. Loading from MLflow.", model_identifier)
-                mlflow.set_tracking_uri(self.tracking_uri)
-                model_info = self.client.get_model_version(name=model_identifier, version=version)
-                model = mlflow.pytorch.load_model(model_info.source)
-                self._model_cache[(model_identifier, version)] = model
-                logger.info("Loaded and cached model '%s' from '%s'.", model_identifier, model_uri)
-                return model
-            except Exception as e:
-                logger.exception("Failed to load model '%s' from MLflow.", model_identifier)
-                if "Could not find a registered artifact repository for:" in str(e):
-                    raise ValueError(
-                        f"Failed to load model '{model_identifier}': model version source URI is invalid. "
-                        "This often means the model version was registered from a local Windows path "
-                        "instead of a URI (e.g. file:///... or runs:/...). Re-register the model version."
-                    )
-                raise ValueError(f"Failed to load model '{model_identifier}': {str(e)}")
+    def get_model_by_version(self, model_identifier: str, version: str):
+        """ Get a model from the registry by its identifier and version. """
+        version = self.client.get_model_version(name=model_identifier, version=version)
+        return self._get_model_cached(version)
 
     def get_model_by_alias(self, model_identifier: str, alias: str):
         """ Get a model from the registry by its identifier and alias. """
-        if alias == "latest":
-            try:
-                registered_model = self.client.get_registered_model(model_identifier)
-                latest_versions = list(registered_model.latest_versions or [])
-                if not latest_versions:
-                    raise ValueError(f"No versions found for model '{model_identifier}'")
-                latest_version = max(latest_versions, key=lambda version: int(version.version))
-                return self.get_model_by_version(model_identifier, str(latest_version))
-            except ValueError:
-                raise
-            except Exception as e:
-                logger.exception("Failed to resolve latest version for model '%s'.", model_identifier)
-                raise ValueError(
-                    f"Could not resolve latest version for model '{model_identifier}': {str(e)}"
-                )
-
-        try:
-            version = self.client.get_model_version_by_alias(model_identifier, alias)
-        except Exception as e:
-            logger.exception("Failed to resolve alias '%s' for model '%s'.", alias, model_identifier)
-            raise ValueError(
-                f"Alias '{alias}' not found for model '{model_identifier}': {str(e)}"
-            )
-
-        if version is None or not getattr(version, "version", None):
-            logger.error("Alias '%s' not found for model '%s'.", alias, model_identifier)
-            raise ValueError(f"Alias '{alias}' not found for model '{model_identifier}'")
-
-        return self.get_model_by_version(model_identifier, str(version.version))
+        version = self.client.get_model_version_by_alias(name=model_identifier, alias=alias)
+        return self._get_model_cached(version)
 
     @staticmethod
     def _build_tag_filter(tags: dict):
