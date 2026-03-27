@@ -120,6 +120,78 @@ class TestMLFlowModelRegistry(unittest.TestCase):
             {"task": "instance_segmentation"},
         )
 
+    def test_clone_registered_model_creates_new_entry_and_version(self):
+        registry = MLFlowModelRegistry("http://example")
+        registry.client = MagicMock()
+        registry.check_registered = MagicMock(return_value=False)
+
+        source_model = SimpleNamespace(
+            description="source description",
+            tags={"task": "instance_segmentation"},
+            latest_versions=[
+                SimpleNamespace(
+                    version="1",
+                    source="runs:/run-1/model",
+                    run_id="run-1",
+                    description="v1",
+                    tags={"stage": "old"},
+                ),
+                SimpleNamespace(
+                    version="2",
+                    source="runs:/run-2/model",
+                    run_id="run-2",
+                    description="v2",
+                    tags={"stage": "latest"},
+                ),
+            ],
+        )
+        registry.client.get_registered_model.return_value = source_model
+        registry.client.create_model_version.return_value = SimpleNamespace(version="1")
+
+        with registry._cache_lock:
+            registry._model_cache["demo-clone"] = "stale"
+
+        result = registry.clone_registered_model("demo-clone", "demo")
+
+        registry.client.create_registered_model.assert_called_once_with(
+            name="demo-clone",
+            tags={"task": "instance_segmentation"},
+            description="source description",
+        )
+        registry.client.create_model_version.assert_called_once_with(
+            name="demo-clone",
+            source="runs:/run-2/model",
+            run_id="run-2",
+        )
+        registry.client.update_model_version.assert_called_once_with(
+            name="demo-clone",
+            version="1",
+            description="v2",
+        )
+        registry.client.set_model_version_tag.assert_called_once_with(
+            name="demo-clone",
+            version="1",
+            key="stage",
+            value="latest",
+        )
+        with registry._cache_lock:
+            self.assertNotIn("demo-clone", registry._model_cache)
+        self.assertEqual(result["name"], "demo-clone")
+        self.assertEqual(result["source_model"], "demo")
+        self.assertEqual(result["source_version"], "2")
+
+    def test_clone_registered_model_raises_when_source_has_no_versions(self):
+        registry = MLFlowModelRegistry("http://example")
+        registry.client = MagicMock()
+        registry.client.get_registered_model.return_value = SimpleNamespace(
+            latest_versions=[],
+            description=None,
+            tags=None,
+        )
+
+        with self.assertRaises(ValueError):
+            registry.clone_registered_model("demo-clone", "demo")
+
 
 if __name__ == "__main__":
     unittest.main()

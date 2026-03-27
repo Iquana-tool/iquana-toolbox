@@ -91,7 +91,91 @@ class MLFlowModelRegistry:
         """
             Clone a model and make a new registry entry. Useful for tracking user specific models.
         """
-        # TODO: Implement this
+        if new_identifier == old_identifier:
+            raise ValueError("new_identifier must be different from old_identifier")
+
+        logger.info(
+            "Cloning registered model from '%s' to '%s'.",
+            old_identifier,
+            new_identifier,
+        )
+
+        try:
+            source_model = self.client.get_registered_model(old_identifier)
+            latest_versions = list(source_model.latest_versions or [])
+            if not latest_versions:
+                raise ValueError(
+                    f"Source model '{old_identifier}' has no versions to clone."
+                )
+
+            source_version = max(latest_versions, key=lambda version: int(version.version))
+
+            if not self.check_registered(new_identifier):
+                self.client.create_registered_model(
+                    name=new_identifier,
+                    tags=source_model.tags,
+                    description=source_model.description,
+                )
+                logger.info("Created destination registered model '%s'.", new_identifier)
+            else:
+                if source_model.description:
+                    self.client.update_registered_model(
+                        name=new_identifier,
+                        description=source_model.description,
+                    )
+                if source_model.tags:
+                    for key, value in source_model.tags.items():
+                        self.client.set_registered_model_tag(new_identifier, key, value)
+
+            cloned_version = self.client.create_model_version(
+                name=new_identifier,
+                source=source_version.source,
+                run_id=source_version.run_id,
+            )
+
+            if getattr(source_version, "description", None):
+                self.client.update_model_version(
+                    name=new_identifier,
+                    version=cloned_version.version,
+                    description=source_version.description,
+                )
+
+            source_version_tags = getattr(source_version, "tags", None) or {}
+            for key, value in source_version_tags.items():
+                self.client.set_model_version_tag(
+                    name=new_identifier,
+                    version=cloned_version.version,
+                    key=key,
+                    value=value,
+                )
+
+            with self._cache_lock:
+                self._model_cache.pop(new_identifier, None)
+
+            logger.info(
+                "Cloned model '%s' version '%s' into '%s' version '%s'.",
+                old_identifier,
+                source_version.version,
+                new_identifier,
+                cloned_version.version,
+            )
+            return {
+                "name": new_identifier,
+                "version": cloned_version.version,
+                "source_model": old_identifier,
+                "source_version": source_version.version,
+            }
+        except ValueError:
+            raise
+        except Exception as e:
+            logger.exception(
+                "Failed to clone registered model from '%s' to '%s'.",
+                old_identifier,
+                new_identifier,
+            )
+            raise ValueError(
+                f"Failed to clone registered model '{old_identifier}' to '{new_identifier}': {str(e)}"
+            )
     
     def get_model(self, model_identifier: str, version_or_alias: str = 'latest'):
         """ Get a model from the registry by its identifier. """
