@@ -1,5 +1,6 @@
 import logging
 import threading
+from pathlib import Path
 
 import mlflow
 from cachetools import TTLCache
@@ -28,6 +29,18 @@ class MLFlowModelRegistry:
                     keys_to_remove.append(key)
             for key in keys_to_remove:
                 self._model_cache.pop(key, None)
+
+    @staticmethod
+    def _normalize_model_source_uri(source: str) -> str:
+        """Normalize local filesystem source paths to file:// URIs for MLflow compatibility."""
+        if not source:
+            return source
+        lower_source = source.lower()
+        if lower_source.startswith(("runs:/", "models:/", "file:", "http:", "https:", "s3:", "gs:", "mlflow-artifacts:")):
+            return source
+        if len(source) >= 3 and source[1] == ":" and source[2] in ("\\", "/"):
+            return Path(source).resolve().as_uri()
+        return source
 
     def register_model(
             self,
@@ -68,7 +81,8 @@ class MLFlowModelRegistry:
         with mlflow.start_run() as run:
             artifact_path = "model"
             mlflow.pytorch.log_model(pytorch_model=model, name=artifact_path)
-            source = f"runs:/{run.info.run_id}/{artifact_path}"
+            source = mlflow.get_artifact_uri(artifact_path)
+            source = self._normalize_model_source_uri(source)
             model_version = self.client.create_model_version(
                 name=model_identifier,
                 source=source,
@@ -140,7 +154,7 @@ class MLFlowModelRegistry:
 
             cloned_version = self.client.create_model_version(
                 name=new_identifier,
-                source=source_version.source,
+                source=self._normalize_model_source_uri(source_version.source),
                 run_id=source_version.run_id,
             )
 
@@ -205,10 +219,32 @@ class MLFlowModelRegistry:
                 return model
             except Exception as e:
                 logger.exception("Failed to load model '%s' from MLflow.", model_identifier)
+                if "Could not find a registered artifact repository for:" in str(e):
+                    raise ValueError(
+                        f"Failed to load model '{model_identifier}': model version source URI is invalid. "
+                        "This often means the model version was registered from a local Windows path "
+                        "instead of a URI (e.g. file:///... or runs:/...). Re-register the model version."
+                    )
                 raise ValueError(f"Failed to load model '{model_identifier}': {str(e)}")
 
     def get_model_by_alias(self, model_identifier: str, alias: str):
         """ Get a model from the registry by its identifier and alias. """
+        if alias == "latest":
+            try:
+                registered_model = self.client.get_registered_model(model_identifier)
+                latest_versions = list(registered_model.latest_versions or [])
+                if not latest_versions:
+                    raise ValueError(f"No versions found for model '{model_identifier}'")
+                latest_version = max(latest_versions, key=lambda version: int(version.version))
+                return self.get_model_by_version(model_identifier, str(latest_version.version))
+            except ValueError:
+                raise
+            except Exception as e:
+                logger.exception("Failed to resolve latest version for model '%s'.", model_identifier)
+                raise ValueError(
+                    f"Could not resolve latest version for model '{model_identifier}': {str(e)}"
+                )
+
         try:
             version = self.client.get_model_version_by_alias(model_identifier, alias)
         except Exception as e:

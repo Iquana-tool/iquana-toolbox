@@ -34,6 +34,7 @@ class TestMLFlowModelRegistry(unittest.TestCase):
 
         with patch("iquana_toolbox.mlflow.mlflow.set_tracking_uri") as mock_set_uri, \
                 patch("iquana_toolbox.mlflow.mlflow.start_run", return_value=run_context), \
+                patch("iquana_toolbox.mlflow.mlflow.get_artifact_uri", return_value="file:///tmp/model"), \
                 patch(
                     "iquana_toolbox.mlflow.mlflow.pytorch",
                     new=SimpleNamespace(log_model=mock_log_model),
@@ -54,7 +55,7 @@ class TestMLFlowModelRegistry(unittest.TestCase):
         mock_log_model.assert_called_once()
         registry.client.create_model_version.assert_called_once_with(
             name="demo",
-            source="runs:/rid-123/model",
+            source="file:///tmp/model",
             run_id="rid-123",
         )
         with registry._cache_lock:
@@ -76,6 +77,7 @@ class TestMLFlowModelRegistry(unittest.TestCase):
 
         with patch("iquana_toolbox.mlflow.mlflow.set_tracking_uri"), \
                 patch("iquana_toolbox.mlflow.mlflow.start_run", return_value=run_context), \
+                patch("iquana_toolbox.mlflow.mlflow.get_artifact_uri", return_value="file:///tmp/model"), \
                 patch(
                     "iquana_toolbox.mlflow.mlflow.pytorch",
                     new=SimpleNamespace(log_model=mock_log_model),
@@ -203,6 +205,23 @@ class TestMLFlowModelRegistry(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             registry.get_model_by_alias("demo", "prod")
+
+    def test_get_model_by_alias_latest_resolves_highest_version(self):
+        registry = MLFlowModelRegistry("http://example")
+        registry.client = MagicMock()
+        registry.client.get_registered_model.return_value = SimpleNamespace(
+            latest_versions=[
+                SimpleNamespace(version="1"),
+                SimpleNamespace(version="7"),
+                SimpleNamespace(version="3"),
+            ]
+        )
+        registry.get_model_by_version = MagicMock(return_value="model-obj")
+
+        result = registry.get_model_by_alias("demo", "latest")
+
+        self.assertEqual(result, "model-obj")
+        registry.get_model_by_version.assert_called_once_with("demo", "7")
 
 
 if __name__ == "__main__":
