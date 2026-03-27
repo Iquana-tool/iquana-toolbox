@@ -80,7 +80,7 @@ class MLFlowModelRegistry:
 
         with mlflow.start_run() as run:
             artifact_path = "model"
-            mlflow.pytorch.log_model(pytorch_model=model, name=artifact_path)
+            mlflow.pytorch.log_model(pytorch_model=model, registered_model_name=model_identifier)
             source = mlflow.get_artifact_uri(artifact_path)
             source = self._normalize_model_source_uri(source)
             model_version = self.client.create_model_version(
