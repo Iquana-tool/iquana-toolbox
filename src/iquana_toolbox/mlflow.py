@@ -55,7 +55,7 @@ class MLFlowModelRegistry:
 
         with mlflow.start_run() as run:
             artifact_path = "model"
-            mlflow.pytorch.log_model(pytorch_model=model, artifact_path=artifact_path)
+            mlflow.pytorch.log_model(pytorch_model=model, registered_model_name=model_identifier)
             source = f"runs:/{run.info.run_id}/{artifact_path}"
             model_version = self.client.create_model_version(
                 name=model_identifier,
