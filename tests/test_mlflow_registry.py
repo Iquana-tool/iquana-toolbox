@@ -30,6 +30,7 @@ class TestMLFlowModelRegistry(unittest.TestCase):
 
         with registry._cache_lock:
             registry._model_cache["demo"] = "stale-model"
+            registry._model_cache[("demo", "1")] = "stale-model-v1"
 
         with patch("iquana_toolbox.mlflow.mlflow.set_tracking_uri") as mock_set_uri, \
                 patch("iquana_toolbox.mlflow.mlflow.start_run", return_value=run_context), \
@@ -58,6 +59,7 @@ class TestMLFlowModelRegistry(unittest.TestCase):
         )
         with registry._cache_lock:
             self.assertNotIn("demo", registry._model_cache)
+            self.assertNotIn(("demo", "1"), registry._model_cache)
 
     def test_register_model_updates_metadata_when_already_registered(self):
         registry = MLFlowModelRegistry("http://example")
@@ -150,6 +152,7 @@ class TestMLFlowModelRegistry(unittest.TestCase):
 
         with registry._cache_lock:
             registry._model_cache["demo-clone"] = "stale"
+            registry._model_cache[("demo-clone", "2")] = "stale-v2"
 
         result = registry.clone_registered_model("demo-clone", "demo")
 
@@ -176,6 +179,7 @@ class TestMLFlowModelRegistry(unittest.TestCase):
         )
         with registry._cache_lock:
             self.assertNotIn("demo-clone", registry._model_cache)
+            self.assertNotIn(("demo-clone", "2"), registry._model_cache)
         self.assertEqual(result["name"], "demo-clone")
         self.assertEqual(result["source_model"], "demo")
         self.assertEqual(result["source_version"], "2")
@@ -191,6 +195,14 @@ class TestMLFlowModelRegistry(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             registry.clone_registered_model("demo-clone", "demo")
+
+    def test_get_model_by_alias_raises_on_lookup_error(self):
+        registry = MLFlowModelRegistry("http://example")
+        registry.client = MagicMock()
+        registry.client.get_model_version_by_alias.side_effect = RuntimeError("not found")
+
+        with self.assertRaises(ValueError):
+            registry.get_model_by_alias("demo", "prod")
 
 
 if __name__ == "__main__":
