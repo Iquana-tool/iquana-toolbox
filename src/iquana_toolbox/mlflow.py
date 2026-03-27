@@ -212,8 +212,8 @@ class MLFlowModelRegistry:
             try:
                 logger.info("Cache miss for model '%s'. Loading from MLflow.", model_identifier)
                 mlflow.set_tracking_uri(self.tracking_uri)
-                model_uri = f"models:/{model_identifier}/{version}"
-                model = mlflow.pytorch.load_model(model_uri)
+                model_info = self.client.get_model_version(name=model_identifier, version=version)
+                model = mlflow.pytorch.load_model(model_info.source)
                 self._model_cache[(model_identifier, version)] = model
                 logger.info("Loaded and cached model '%s' from '%s'.", model_identifier, model_uri)
                 return model
@@ -236,7 +236,7 @@ class MLFlowModelRegistry:
                 if not latest_versions:
                     raise ValueError(f"No versions found for model '{model_identifier}'")
                 latest_version = max(latest_versions, key=lambda version: int(version.version))
-                return self.get_model_by_version(model_identifier, str(latest_version.version))
+                return self.get_model_by_version(model_identifier, str(latest_version))
             except ValueError:
                 raise
             except Exception as e:
