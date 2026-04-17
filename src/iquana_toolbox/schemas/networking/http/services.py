@@ -42,6 +42,11 @@ class SemanticSegmentationRequest(BaseServiceRequest):
     pass
 
 
+class InstanceSegmentationRequest(BaseServiceRequest):
+    """ A Instance Segmentation Inference Request."""
+    label: Label = Field(..., title="Label", description="Label defining the instance.")
+
+
 class MultiSemanticSegmentationRequest(BaseModel):
     """ Expands the BaseServiceRequest with a label hierarchy for the model."""
     images: list[BaseImageRequest] = Field(..., title="Images", description="Images to expand.")
