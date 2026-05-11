@@ -1,9 +1,21 @@
 from collections import defaultdict
-from typing import Optional, Literal
+from typing import Optional, Literal, Union
 from typing import Tuple
 from pydantic import BaseModel, Field, computed_field
 
-from iquana_toolbox.schemas.database.labels import LabelHierarchy
+from iquana_toolbox.schemas.database.labels import LabelHierarchy, Label
+
+
+class BaseTrainingRequest(BaseModel):
+    image_urls: list[str] = Field(..., description="List of image urls to train on.")
+    model_registry_key: str = Field(..., description="A key from the model registry")
+    user_id: Union[str, int] = Field(..., title="User ID", description="Unique identifier for the user.")
+    hyper_parameter: dict = Field(default_factory=dict, description="Hyperparameters of the training.")
+
+
+class InstanceSegmentationTrainingRequest(BaseTrainingRequest):
+    label: Label = Field(..., title="Label", description="Label defining the instances.")
+    gt_instances: list[str] = Field(..., description="List of groundtruth instances to train on.")
 
 
 class HyperParams(BaseModel):
