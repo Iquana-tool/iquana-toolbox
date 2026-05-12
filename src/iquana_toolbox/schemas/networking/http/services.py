@@ -63,7 +63,7 @@ class PromptedSegmentationRequest(BaseServiceRequest):
     previous_mask: BinaryMask | None = Field(None, title="Previous Mask")
 
 
-class CompletionRequest(BaseServiceRequest):
+class InstanceDiscoveryRequest(BaseServiceRequest):
     """ Model for instance discovery with image exemplars and concepts. """
     positive_exemplars: list[BinaryMask] = Field(..., description="Exemplars is a list of RLE encoded binary masks")
     negative_exemplars: list[BinaryMask] | None = Field(..., title="Negative exemplars")
