@@ -7,7 +7,7 @@ from iquana_toolbox.schemas.database.labels import LabelHierarchy, Label
 
 
 class BaseTrainingRequest(BaseModel):
-    image_urls: list[str] = Field(..., description="List of image urls to train on.")
+    image_folder_path: str = Field(..., description="Path to the folder containing the images.")
     model_registry_key: str = Field(..., description="A key from the model registry")
     user_id: Union[str, int] = Field(..., title="User ID", description="Unique identifier for the user.")
     hyper_parameter: dict = Field(default_factory=dict, description="Hyperparameters of the training.")
