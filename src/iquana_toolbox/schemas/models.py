@@ -2,7 +2,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
-from iquana_toolbox.schemas.database.labels import LabelHierarchy
+from iquana_toolbox.schemas.database.labels import LabelHierarchy, Label
 from iquana_toolbox.schemas.training import TrainingProgress
 
 
@@ -31,6 +31,10 @@ class PromptedSegmentationModels(BaseAIModel):
 
 class CompletionModel(BaseAIModel):
     pass
+
+
+class InstanceSegmentationModel(BaseAIModel):
+    label: Label = Field(..., description="The label that the model can predict.")
 
 
 class SemanticSegmentationModels(BaseAIModel):
