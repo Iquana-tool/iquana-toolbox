@@ -15,7 +15,8 @@ class BaseTrainingRequest(BaseModel):
 
 class InstanceSegmentationTrainingRequest(BaseTrainingRequest):
     label: Label = Field(..., title="Label", description="Label defining the instances.")
-    gt_instances: list[str] = Field(..., description="List of groundtruth instances to train on.")
+    annotation_file_url: str = Field(... , title="Annotation File URL",
+                                     description="The path to a COCO annotation file.")
 
 
 class HyperParams(BaseModel):
