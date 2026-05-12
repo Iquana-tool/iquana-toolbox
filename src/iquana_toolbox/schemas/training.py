@@ -7,6 +7,7 @@ from iquana_toolbox.schemas.database.labels import LabelHierarchy, Label
 
 
 class BaseTrainingRequest(BaseModel):
+    dataset_id: int = Field(..., title="Dataset ID", description="The dataset ID.")
     image_folder_path: str = Field(..., description="Path to the folder containing the images.")
     model_registry_key: str = Field(..., description="A key from the model registry")
     user_id: Union[str, int] = Field(..., title="User ID", description="Unique identifier for the user.")
