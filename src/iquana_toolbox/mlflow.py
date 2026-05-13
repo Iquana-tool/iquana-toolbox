@@ -45,7 +45,8 @@ class MLFlowModelRegistry:
         if not source:
             return source
         lower_source = source.lower()
-        if lower_source.startswith(("runs:/", "models:/", "file:", "http:", "https:", "s3:", "gs:", "mlflow-artifacts:")):
+        if lower_source.startswith(
+                ("runs:/", "models:/", "file:", "http:", "https:", "s3:", "gs:", "mlflow-artifacts:")):
             return source
         if len(source) >= 3 and source[1] == ":" and source[2] in ("\\", "/"):
             return Path(source).resolve().as_uri()
@@ -63,26 +64,24 @@ class MLFlowModelRegistry:
 
         mlflow.set_tracking_uri(self.tracking_uri)
 
-        if not self.check_registered(model.model_info.registry_key):
-            self.client.create_registered_model(
-                name=model.model_info.registry_key,
-                tags=model.model_info.model_dump(),
-                description=model.model_info.description,
-            )
+        if ((not self.check_registered(model.model_info.registry_key))
+                or "user_id" in model.model_info.tags or "dataset_id" in model.model_info.tags):
+            # If the model is not registered or this is a trained model (user_id or dataset_id is present), we log a new
+            # version of the model
+            with mlflow.start_run():
+                mlflow.pyfunc.log_model(
+                    python_model=model,
+                    registered_model_name=model.model_info.registry_key,
+                    tags=model.model_info.tags,
+                    metadata=model.model_info.model_dump()
+                )
             logger.info(
                 f"Registered model {model.model_info.name} in MLflow with key {model.model_info.registry_key}.")
         else:
-            logger.info(f"Model {model.model_info.name} is already registered in MLflow. Skipped.")
-
-        with mlflow.start_run() as run:
-            info = mlflow.pyfunc.log_model(
-                python_model=model,
-                registered_model_name=model.model_info.registry_key,
-                metadata=model.model_info.model_dump()
-            )
+            logger.info(f"Model {model.model_info.name} is an already registered base model. Skipped.")
 
         self._invalidate_model_cache(model.model_info.registry_key)
-    
+
     def check_registered(self, model_identifier: str):
         """ Check if a model is registered in the registry. """
         try:
@@ -150,7 +149,7 @@ class MLFlowModelRegistry:
         except Exception as e:
             logger.exception("Failed to search for models with tags: %s", tags)
             raise ValueError(f"Failed to search for models with tags {tags}: {str(e)}")
-    
+
     def get_model_info(self, model_identifier: str) -> ModelInfo:
         """ Get a model info from the registry by its identifier. """
         try:
@@ -167,4 +166,3 @@ class MLFlowModelRegistry:
         Registers all unregistered models. """
         for model_cls in models:
             self.register_model(model_cls())
-
