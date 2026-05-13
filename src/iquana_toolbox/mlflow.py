@@ -8,6 +8,7 @@ from mlflow import MlflowClient
 from mlflow.entities.model_registry import ModelVersion
 
 from iquana_toolbox.ai.base_classes import BaseModel
+from iquana_toolbox.schemas.model_info import parse_tags_to_model_info, ModelInfo
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ class MLFlowModelRegistry:
         if not self.check_registered(model.model_info.registry_key):
             self.client.create_registered_model(
                 name=model.model_info.registry_key,
-                tags=model.model_info.tags,
+                tags=model.model_info.model_dump(),
                 description=model.model_info.description,
             )
             logger.info(
@@ -70,7 +71,8 @@ class MLFlowModelRegistry:
         with mlflow.start_run() as run:
             info = mlflow.pyfunc.log_model(
                 python_model=model,
-                registered_model_name=model.model_info.registry_key
+                registered_model_name=model.model_info.registry_key,
+                metadata=model.model_info.model_dump()
             )
 
         self._invalidate_model_cache(model.model_info.registry_key)
@@ -141,18 +143,13 @@ class MLFlowModelRegistry:
             logger.exception("Failed to search for models with tags: %s", tags)
             raise ValueError(f"Failed to search for models with tags {tags}: {str(e)}")
     
-    def get_model_info(self, model_identifier: str):
+    def get_model_info(self, model_identifier: str) -> ModelInfo:
         """ Get a model info from the registry by its identifier. """
         try:
             logger.debug("Fetching model info for '%s'.", model_identifier)
             registered_model = self.client.get_registered_model(model_identifier)
-            return {
-                "name": registered_model.name,
-                "creation_timestamp": registered_model.creation_timestamp,
-                "last_updated_timestamp": registered_model.last_updated_timestamp,
-                "description": registered_model.description,
-                "tags": registered_model.tags,
-            }
+            model_info = parse_tags_to_model_info(registered_model.tags)
+            return model_info
         except Exception as e:
             logger.exception("Failed to fetch model info for '%s'.", model_identifier)
             raise ValueError(f"Failed to get info for model '{model_identifier}': {str(e)}")

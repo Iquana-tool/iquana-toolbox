@@ -1,8 +1,93 @@
-from typing import List, Optional, Literal
+import ast
+from typing import List, Optional, Literal, Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
-from iquana_toolbox.schemas.database.labels import LabelHierarchy, Label
+
+def _parse_optional_bool(value: Any) -> Optional[bool]:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"true", "1", "yes", "y", "on"}:
+            return True
+        if lowered in {"false", "0", "no", "n", "off"}:
+            return False
+    return None
+
+
+def _parse_optional_int(value: Any) -> Optional[int]:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return None
+        try:
+            return int(stripped)
+        except ValueError:
+            return None
+    return None
+
+
+def _parse_list_like(value: Any) -> list:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    if isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return []
+        if stripped.startswith("[") and stripped.endswith("]"):
+            try:
+                parsed = ast.literal_eval(stripped)
+                if isinstance(parsed, list):
+                    return parsed
+            except (ValueError, SyntaxError):
+                pass
+        if "," in stripped:
+            return [item.strip() for item in stripped.split(",") if item.strip()]
+        return [stripped]
+    return [value]
+
+
+def _parse_dict_like(value: Any) -> dict[str, str]:
+    if value is None:
+        return {}
+    if isinstance(value, dict):
+        return {str(key): str(val) for key, val in value.items()}
+    if isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return {}
+        try:
+            parsed = ast.literal_eval(stripped)
+            if isinstance(parsed, dict):
+                return {str(key): str(val) for key, val in parsed.items()}
+        except (ValueError, SyntaxError):
+            return {}
+    return {}
+
+
+def _canonical_task(task_value: Any) -> Optional[str]:
+    if not isinstance(task_value, str):
+        return None
+    normalized = task_value.strip().lower().replace("-", "_").replace(" ", "_")
+    alias_map = {
+        "prompted_segmentation": "prompted_segmentation",
+        "interactive_segmentation": "prompted_segmentation",
+        "instance_segmentation": "instance_segmentation",
+        "instance_discovery": "instance_discovery",
+        "semantic_segmentation": "semantic_segmentation",
+    }
+    return alias_map.get(normalized)
 
 
 class ModelInfo(BaseModel):
@@ -87,3 +172,57 @@ class InstanceSegmentationModelInfo(ModelInfo):
 
 class SemanticSegmentationModelInfo(ModelInfo):
     """ Extends ModelInfo to provide semantic segmentation specific information. This is deprecated! """
+
+
+def parse_tags_to_model_info(tags: dict[str, Any]) -> ModelInfo:
+    if not isinstance(tags, dict):
+        raise TypeError("tags must be a dictionary")
+
+    payload: dict[str, Any] = dict(tags)
+
+    if "trainable" in payload:
+        parsed_trainable = _parse_optional_bool(payload.get("trainable"))
+        if parsed_trainable is not None:
+            payload["trainable"] = parsed_trainable
+
+    if "refinement_supported" in payload:
+        parsed_refinement = _parse_optional_bool(payload.get("refinement_supported"))
+        if parsed_refinement is not None:
+            payload["refinement_supported"] = parsed_refinement
+
+    if "label_id" in payload:
+        payload["label_id"] = _parse_optional_int(payload.get("label_id"))
+
+    if "prompt_types_supported" in payload:
+        payload["prompt_types_supported"] = _parse_list_like(payload.get("prompt_types_supported"))
+
+    if "badges" in payload:
+        payload["badges"] = [str(badge) for badge in _parse_list_like(payload.get("badges"))]
+
+    if "tags" in payload:
+        payload["tags"] = _parse_dict_like(payload.get("tags"))
+
+    task = _canonical_task(payload.get("task"))
+    if task is None:
+        task = _canonical_task(payload.get("model_task"))
+
+    model_cls: type[ModelInfo] = ModelInfo
+    if task == "prompted_segmentation":
+        model_cls = PromptedSegmentationModelInfo
+    elif task == "instance_segmentation":
+        model_cls = InstanceSegmentationModelInfo
+    elif task == "instance_discovery":
+        model_cls = InstanceDiscoveryModelInfo
+    elif task == "semantic_segmentation":
+        model_cls = SemanticSegmentationModelInfo
+    elif "prompt_types_supported" in payload or "refinement_supported" in payload:
+        model_cls = PromptedSegmentationModelInfo
+    elif "label_id" in payload:
+        model_cls = InstanceSegmentationModelInfo
+
+    try:
+        return model_cls.model_validate(payload)
+    except ValidationError:
+        if model_cls is ModelInfo:
+            raise
+        return ModelInfo.model_validate(payload)
