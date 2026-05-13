@@ -38,23 +38,13 @@ class BaseServiceRequest(BaseImageRequest):
 
 
 class SemanticSegmentationRequest(BaseServiceRequest):
-    """ A Semantic Segmentation Inference Request."""
+    """ A Semantic Segmentation Inference Request. Deprecated"""
     pass
 
 
 class InstanceSegmentationRequest(BaseServiceRequest):
     """ A Instance Segmentation Inference Request."""
     label: Label = Field(..., title="Label", description="Label defining the instance.")
-
-
-class MultiSemanticSegmentationRequest(BaseModel):
-    """ Expands the BaseServiceRequest with a label hierarchy for the model."""
-    images: list[BaseImageRequest] = Field(..., title="Images", description="Images to expand.")
-    model_registry_key: str = Field(..., title="Model registry key", description="Model identifier string.")
-    label_hierarchy: LabelHierarchy = Field(
-        ..., title="Label hierarchy",
-        description="A hierarchy of the labels. Describes which labels should be present in the mask."
-    )
 
 
 class PromptedSegmentationRequest(BaseServiceRequest):
