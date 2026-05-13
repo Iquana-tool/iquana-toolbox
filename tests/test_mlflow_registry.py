@@ -115,7 +115,7 @@ class TestMLFlowModelRegistry(unittest.TestCase):
             }
         }
 
-        registry.ensure_models_are_registered(models)
+        registry.register_models(models)
 
         registry.register_model.assert_called_once_with(
             "demo",

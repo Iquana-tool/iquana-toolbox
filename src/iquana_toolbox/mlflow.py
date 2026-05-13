@@ -1,11 +1,12 @@
 import logging
 import threading
 from pathlib import Path
+from typing import Optional
 
 import mlflow
 from cachetools import TTLCache
 from mlflow import MlflowClient
-from mlflow.entities.model_registry import ModelVersion
+from mlflow.pyfunc import PyFuncModel
 
 from iquana_toolbox.ai.base_classes import BaseModel
 from iquana_toolbox.schemas.model_info import parse_tags_to_model_info, ModelInfo
@@ -27,6 +28,11 @@ class MLFlowModelRegistry:
             keys_to_remove = []
             for key in list(self._model_cache.keys()):
                 if key == model_identifier:
+                    keys_to_remove.append(key)
+                elif isinstance(key, str) and (
+                        key.startswith(f"models:/{model_identifier}/")
+                        or key.startswith(f"models:/{model_identifier}@")
+                ):
                     keys_to_remove.append(key)
                 elif isinstance(key, tuple) and key and key[0] == model_identifier:
                     keys_to_remove.append(key)
@@ -91,28 +97,37 @@ class MLFlowModelRegistry:
             logger.exception("Failed to check registration status for model '%s'.", model_identifier)
             return False
 
-    def _get_model_cached(self, version: ModelVersion):
+    def _get_model_cached(self, model_uri: str) -> PyFuncModel:
         with self._cache_lock:
-            model = self._model_cache.get((version.name, version.version))
+            model = self._model_cache.get(model_uri)
             if model is not None:
-                logger.debug(f"Cache hit for model '{version.name}-{version.version}'")
+                logger.debug(f"Cache hit for model '{model_uri}'")
                 return model
             else:
-                logger.info(f"Cache miss for model '{version.name}-{version.version}'. Loading from MLflow.")
+                logger.info(f"Cache miss for model '{model_uri}'. Loading from MLflow.")
                 mlflow.set_tracking_uri(self.tracking_uri)
-                model = mlflow.pytorch.load_model(version.source)
-                self._model_cache[(version.name, version.version)] = model
+                model = mlflow.pyfunc.load_model(model_uri)
+                self._model_cache[model_uri] = model
                 return model
 
-    def get_model_by_version(self, model_identifier: str, version: str):
-        """ Get a model from the registry by its identifier and version. """
-        version = self.client.get_model_version(name=model_identifier, version=version)
-        return self._get_model_cached(version)
+    @staticmethod
+    def _build_model_uri(model_identifier: str, *, version: Optional[str] = None, alias: Optional[str] = None) -> str:
+        """Build an MLflow models:/ URI from either a version or alias."""
+        if bool(version) == bool(alias):
+            raise ValueError("Exactly one of 'version' or 'alias' must be provided.")
+        if version:
+            return f"models:/{model_identifier}/{version}"
+        return f"models:/{model_identifier}@{alias}"
 
-    def get_model_by_alias(self, model_identifier: str, alias: str):
+    def get_model_by_version(self, model_identifier: str, version: str) -> PyFuncModel:
+        """ Get a model from the registry by its identifier and version. """
+        model_uri = self._build_model_uri(model_identifier, version=version)
+        return self._get_model_cached(model_uri)
+
+    def get_model_by_alias(self, model_identifier: str, alias: str) -> PyFuncModel:
         """ Get a model from the registry by its identifier and alias. """
-        version = self.client.get_model_version_by_alias(name=model_identifier, alias=alias)
-        return self._get_model_cached(version)
+        model_uri = self._build_model_uri(model_identifier, alias=alias)
+        return self._get_model_cached(model_uri)
 
     @staticmethod
     def _build_tag_filter(tags: dict):
@@ -122,21 +137,14 @@ class MLFlowModelRegistry:
             filters.append(f"tags.{key} = '{value}'")
         return " AND ".join(filters)
 
-    def get_models_via_tags(self, tags: dict):
+    def get_model_infos_via_tags(self, tags: dict) -> list[ModelInfo]:
         """ Get models from the registry that match the given tags. """
         try:
             logger.debug("Searching for models with tags: %s", tags)
             registered_models = self.client.search_registered_models(filter_string=self._build_tag_filter(tags))
             model_infos = []
             for model in registered_models:
-                model_infos.append({
-                    "name": model.name,
-                    "creation_timestamp": model.creation_timestamp,
-                    "last_updated_timestamp": model.last_updated_timestamp,
-                    "description": model.description,
-                    "tags": model.tags,
-                    "versions": model.latest_versions
-                })
+                model_infos.append(self.get_model_info(model.name))
             logger.debug("Found %d models matching tags.", len(model_infos))
             return model_infos
         except Exception as e:
@@ -154,11 +162,9 @@ class MLFlowModelRegistry:
             logger.exception("Failed to fetch model info for '%s'.", model_identifier)
             raise ValueError(f"Failed to get info for model '{model_identifier}': {str(e)}")
 
-    def ensure_models_are_registered(self, models: list):
-        """ Ensure that all models are registered in the registry. Registers all unregistered models. """
+    def register_models(self, models: list):
+        """ Ensure that all models are registered in the registry.
+        Registers all unregistered models. """
         for model_cls in models:
-            if not self.check_registered(model_cls.model_info.registry_key):
-                self.register_model(model_cls())
-            else:
-                continue
+            self.register_model(model_cls())
 
