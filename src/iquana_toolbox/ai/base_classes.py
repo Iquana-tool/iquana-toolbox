@@ -36,7 +36,7 @@ class BaseModel(ABC, mlflow.pyfunc.PythonModel):
     @abstractmethod
     def predict(self,
                 context: Any,
-                model_input: BaseServiceRequest,
+                model_input: list[BaseServiceRequest],
                 params: dict[str, Any] | None = None):
         raise NotImplementedError("Subclasses must implement this method!")
 
@@ -64,7 +64,7 @@ class InstanceDiscoveryModel(BaseModel):
     @abstractmethod
     def predict(self,
                 context: Any,
-                model_input: InstanceDiscoveryRequest,
+                model_input: list[InstanceDiscoveryRequest],
                 params: dict[str, Any] | None = None) -> tuple[np.ndarray, np.ndarray]:
         """
         Process an InstanceDiscoveryRequest.
@@ -87,7 +87,7 @@ class PromptedSegmentationModel(BaseModel):
     @abstractmethod
     def predict(self,
                 context: Any,
-                model_input: PromptedSegmentationRequest,
+                model_input: list[PromptedSegmentationRequest],
                 params: dict[str, Any] | None = None):
         """ Process a prompted segmentation request."""
         pass
@@ -103,7 +103,7 @@ class InstanceSegmentationModel(BaseModel):
     @abstractmethod
     def predict(self,
                 context: Any,
-                model_input: InstanceSegmentationRequest,
+                model_input: list[InstanceSegmentationRequest],
                 params: dict[str, Any] | None = None) -> list[Contour]:
         """ Inference endpoint. """
         raise NotImplementedError("Subclasses must implement this method!")
