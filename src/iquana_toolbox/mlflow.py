@@ -7,6 +7,8 @@ from cachetools import TTLCache
 from mlflow import MlflowClient
 from mlflow.entities.model_registry import ModelVersion
 
+from iquana_toolbox.ai.base_classes import BaseModel
+
 logger = logging.getLogger(__name__)
 
 
@@ -44,55 +46,38 @@ class MLFlowModelRegistry:
 
     def register_model(
             self,
-            model_identifier: str,
-            model,
-            desc: str | dict | None = None,
-            tags: dict = None,
+            model: BaseModel,
     ):
         """ 
             Register a new model in the registry with the given identifier. Tags can be provided in a dictionary. Tags 
             should include the task, e.g. 'prompted_segmentation' or 'instance_segmentation'.
-            :param model_identifier: unique identifier for the model
             :param model: model to be registered
-            :param desc: Description of the model
-            :param tags: tags associated with the model. Eg. task: prompted_segmentation, instance_segmentation etc.
         """
-        logger.info("Registering model '%s' in MLflow.", model_identifier)
+
         mlflow.set_tracking_uri(self.tracking_uri)
 
-        # Backward compatibility: callers may still pass an info dict as `desc`.
-        if isinstance(desc, dict):
-            desc = desc.get("description") or desc.get("desc")
-
-        if not self.check_registered(model_identifier):
+        if not self.check_registered(model.model_info.registry_key):
             self.client.create_registered_model(
-                name=model_identifier,
-                tags=tags,
-                description=desc,
+                name=model.model_info.registry_key,
+                tags=model.model_info.tags,
+                description=model.model_info.description,
             )
-            logger.info("Created MLflow registered model '%s'.", model_identifier)
+            logger.info(
+                f"Registered model {model.model_info.name} in MLflow with key {model.model_info.registry_key}.")
         else:
-            if desc:
-                self.client.update_registered_model(name=model_identifier, description=desc)
-            if tags:
-                for key, value in tags.items():
-                    self.client.set_registered_model_tag(model_identifier, key, value)
+            logger.info(f"Model {model.model_info.name} is already registered in MLflow. Skipped.")
 
         with mlflow.start_run() as run:
-            info = mlflow.pytorch.log_model(pytorch_model=model, registered_model_name=model_identifier)
+            info = mlflow.pyfunc.log_model(
+                python_model=model,
+                registered_model_name=model.model_info.registry_key
+            )
 
-        self._invalidate_model_cache(model_identifier)
-
-        logger.info(
-            "Model '%s' registered as version '%s'.",
-            model_identifier,
-            info.registered_model_version,
-        )
+        self._invalidate_model_cache(model.model_info.registry_key)
     
     def check_registered(self, model_identifier: str):
         """ Check if a model is registered in the registry. """
         try:
-            logger.debug("Checking registration status for model '%s'.", model_identifier)
             registered_models = self.client.search_registered_models()
             for model in registered_models:
                 if model.name == model_identifier:
@@ -103,95 +88,6 @@ class MLFlowModelRegistry:
         except Exception:
             logger.exception("Failed to check registration status for model '%s'.", model_identifier)
             return False
-
-    def clone_registered_model(self, new_identifier: str, old_identifier: str):
-        """
-            Clone a model and make a new registry entry. Useful for tracking user specific models.
-        """
-        if new_identifier == old_identifier:
-            raise ValueError("new_identifier must be different from old_identifier")
-
-        logger.info(
-            "Cloning registered model from '%s' to '%s'.",
-            old_identifier,
-            new_identifier,
-        )
-
-        try:
-            source_model = self.client.get_registered_model(old_identifier)
-            latest_versions = list(source_model.latest_versions or [])
-            if not latest_versions:
-                raise ValueError(
-                    f"Source model '{old_identifier}' has no versions to clone."
-                )
-
-            source_version = max(latest_versions, key=lambda version: int(version.version))
-
-            if not self.check_registered(new_identifier):
-                self.client.create_registered_model(
-                    name=new_identifier,
-                    tags=source_model.tags,
-                    description=source_model.description,
-                )
-                logger.info("Created destination registered model '%s'.", new_identifier)
-            else:
-                if source_model.description:
-                    self.client.update_registered_model(
-                        name=new_identifier,
-                        description=source_model.description,
-                    )
-                if source_model.tags:
-                    for key, value in source_model.tags.items():
-                        self.client.set_registered_model_tag(new_identifier, key, value)
-
-            cloned_version = self.client.create_model_version(
-                name=new_identifier,
-                source=self._normalize_model_source_uri(source_version.source),
-                run_id=source_version.run_id,
-            )
-
-            if getattr(source_version, "description", None):
-                self.client.update_model_version(
-                    name=new_identifier,
-                    version=cloned_version.version,
-                    description=source_version.description,
-                )
-
-            source_version_tags = getattr(source_version, "tags", None) or {}
-            for key, value in source_version_tags.items():
-                self.client.set_model_version_tag(
-                    name=new_identifier,
-                    version=cloned_version.version,
-                    key=key,
-                    value=value,
-                )
-
-            self._invalidate_model_cache(new_identifier)
-
-            logger.info(
-                "Cloned model '%s' version '%s' into '%s' version '%s'.",
-                old_identifier,
-                source_version.version,
-                new_identifier,
-                cloned_version.version,
-            )
-            return {
-                "name": new_identifier,
-                "version": cloned_version.version,
-                "source_model": old_identifier,
-                "source_version": source_version.version,
-            }
-        except ValueError:
-            raise
-        except Exception as e:
-            logger.exception(
-                "Failed to clone registered model from '%s' to '%s'.",
-                old_identifier,
-                new_identifier,
-            )
-            raise ValueError(
-                f"Failed to clone registered model '{old_identifier}' to '{new_identifier}': {str(e)}"
-            )
 
     def _get_model_cached(self, version: ModelVersion):
         with self._cache_lock:
@@ -261,20 +157,11 @@ class MLFlowModelRegistry:
             logger.exception("Failed to fetch model info for '%s'.", model_identifier)
             raise ValueError(f"Failed to get info for model '{model_identifier}': {str(e)}")
 
-    def ensure_models_are_registered(self, models: dict[str, dict]):
+    def ensure_models_are_registered(self, models: list):
         """ Ensure that all models are registered in the registry. Registers all unregistered models. """
-        for model_id, data in models.items():
-            model = data["model"]
-            info = data.get("info")
-            desc = data.get("desc")
-            if desc is None and isinstance(info, str):
-                desc = info
-            if desc is None and isinstance(info, dict):
-                desc = info.get("description") or info.get("desc")
-            tags = data.get("tags")
-            if not self.check_registered(model_id):
-                logger.info("Model '%s' is missing in registry. Registering now.", model_id)
-                self.register_model(model_id, model, desc, tags)
+        for model_cls in models:
+            if not self.check_registered(model_cls.model_info.registry_key):
+                self.register_model(model_cls())
             else:
-                logger.debug("Model '%s' already registered; skipping.", model_id)
+                continue
 
