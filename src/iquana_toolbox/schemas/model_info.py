@@ -81,7 +81,8 @@ class InstanceDiscoveryModelInfo(ModelInfo):
 
 class InstanceSegmentationModelInfo(ModelInfo):
     """ Extends ModelInfo to provide instance segmentation specific information."""
-    label: Label = Field(..., description="The label that the model can predict.")
+    label_id: Optional[int] = Field(default=None,
+                                    description="The label id that the model can predict. None for untrained models.")
 
 
 class SemanticSegmentationModelInfo(ModelInfo):
