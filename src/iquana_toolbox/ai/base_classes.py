@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-import numpy as np
 import mlflow
+import numpy as np
 
 from iquana_toolbox.schemas.database.contours import Contour
 from iquana_toolbox.schemas.model_info import ModelInfo, InstanceDiscoveryModelInfo, PromptedSegmentationModelInfo, \
@@ -14,8 +14,17 @@ from iquana_toolbox.schemas.training import InstanceSegmentationTrainingRequest
 
 
 class BaseModel(ABC, mlflow.pyfunc.PythonModel):
-    """ All models should inherit from this class. It defines the interface that all models must implement. """
+    """
+    All models should inherit from this class. It defines the interface that all models must implement.
+
+    Attributes:
+        model_info: ModelInfo: A dataclass containing metadata about the model, such as its name, description, and
+            registry key. Check out the docs for ModelInfo for more information.
+        default_hyperparameters: dict[str, Any]: A dictionary containing the default hyperparameters for training the
+            model. This must not necessarily be overwritten by subclasses.
+    """
     model_info: ModelInfo
+    default_hyperparameters: None | dict[str, Any] = None
 
     def load_context(self, context):
         """
@@ -44,7 +53,7 @@ class BaseModel(ABC, mlflow.pyfunc.PythonModel):
 
 
 
-class BaseInstanceDiscoveryModel(BaseModel):
+class InstanceDiscoveryModel(BaseModel):
     """
         Abstract base class for instance discovery models.
         Instance Discovery models take as input an image and an incomplete set of instances, which they have to complete
@@ -53,10 +62,12 @@ class BaseInstanceDiscoveryModel(BaseModel):
     model_info: InstanceDiscoveryModelInfo
 
     @abstractmethod
-    def predict(self, request: InstanceDiscoveryRequest, **kwargs) -> tuple[np.ndarray, np.ndarray]:
-        """ Process a prompted segmentation request.
-        :param request: The request to be processed.
-        :return: A tuple containing a mask and their corresponding quality score.
+    def predict(self,
+                context: Any,
+                model_input: InstanceDiscoveryRequest,
+                params: dict[str, Any] | None = None) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Process an InstanceDiscoveryRequest.
         """
         pass
 
@@ -69,20 +80,20 @@ class BaseInstanceDiscoveryModel(BaseModel):
         pass
 
 
-class BasePromptedSegmentationModel(BaseModel):
+class PromptedSegmentationModel(BaseModel):
     """ Abstract base class for 2D prompted segmentation models. """
     model_info: PromptedSegmentationModelInfo
 
     @abstractmethod
-    def predict(self, request: PromptedSegmentationRequest, **kwargs):
-        """ Process a prompted segmentation request.
-        :param request: The request to be processed.
-        :return: A tuple containing a mask and their corresponding quality score.
-        """
+    def predict(self,
+                context: Any,
+                model_input: PromptedSegmentationRequest,
+                params: dict[str, Any] | None = None):
+        """ Process a prompted segmentation request."""
         pass
 
 
-class BaseInstanceSegmentationModel(BaseModel):
+class InstanceSegmentationModel(BaseModel):
     """
     Abstract base class for instance segmentation models. Defines the interface that all instance segmentation
     models must implement.
@@ -90,7 +101,10 @@ class BaseInstanceSegmentationModel(BaseModel):
     model_info: InstanceSegmentationModelInfo
 
     @abstractmethod
-    def predict(self, request: InstanceSegmentationRequest, **kwargs) -> list[Contour]:
+    def predict(self,
+                context: Any,
+                model_input: InstanceSegmentationRequest,
+                params: dict[str, Any] | None = None) -> list[Contour]:
         """ Inference endpoint. """
         raise NotImplementedError("Subclasses must implement this method!")
 
