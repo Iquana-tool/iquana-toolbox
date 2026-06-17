@@ -10,7 +10,7 @@ from iquana_toolbox.schemas.database.labels import LabelHierarchy
 
 class BinaryMask(BaseModel):
     rle_mask: dict[str, Any] = Field(..., description="Binary mask RLE encoded")
-    score: float | None = Field(..., description="A quality score of the mask")
+    score: float | None = Field(None, description="A quality score of the mask")
     height: int = Field(..., description="The height of the mask")
     width: int = Field(..., description="The width of the mask")
 
