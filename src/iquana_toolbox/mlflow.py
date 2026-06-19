@@ -83,6 +83,13 @@ class MLFlowModelRegistry:
                 self.client.set_registered_model_tag(
                     model.model_info.registry_key, key, str(value)
                 )
+            # ``log_model`` only stores the description inside the artifact metadata, but
+            # consumers read ``RegisteredModel.description`` directly. Mirror it across.
+            if model.model_info.description:
+                self.client.update_registered_model(
+                    model.model_info.registry_key,
+                    description=model.model_info.description,
+                )
             logger.info(
                 f"Registered model {model.model_info.name} in MLflow with key {model.model_info.registry_key}.")
         else:
