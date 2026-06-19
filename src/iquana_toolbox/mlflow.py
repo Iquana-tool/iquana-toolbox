@@ -1,4 +1,6 @@
 import logging
+import shutil
+import tempfile
 import threading
 from pathlib import Path
 from typing import Optional
@@ -67,14 +69,23 @@ class MLFlowModelRegistry:
         if ((not self.check_registered(model.model_info.registry_key))
                 or "user_id" in model.model_info.tags or "dataset_id" in model.model_info.tags):
             # If the model is not registered or this is a trained model (user_id or dataset_id is present), we log a new
-            # version of the model
-            with mlflow.start_run():
-                mlflow.pyfunc.log_model(
-                    python_model=model,
-                    registered_model_name=model.model_info.registry_key,
-                    tags=model.model_info.tags,
-                    metadata=model.model_info.model_dump()
-                )
+            # version of the model.
+            # Models may declare heavy/un-pickleable weights via ``get_artifacts``; we save
+            # them to a temp dir and hand them to MLflow as artifacts (resolved back to local
+            # paths in ``load_context``) instead of cloudpickling the live objects.
+            artifacts_dir = tempfile.mkdtemp(prefix="iquana_model_artifacts_")
+            try:
+                artifacts = model.get_artifacts(artifacts_dir)
+                with mlflow.start_run():
+                    mlflow.pyfunc.log_model(
+                        python_model=model,
+                        registered_model_name=model.model_info.registry_key,
+                        tags=model.model_info.tags,
+                        metadata=model.model_info.model_dump(),
+                        artifacts=artifacts,
+                    )
+            finally:
+                shutil.rmtree(artifacts_dir, ignore_errors=True)
             # MLflow 3.x attaches ``log_model(tags=...)`` to the LoggedModel entity, not
             # to the registered model. Our read path (get_model_info /
             # get_model_infos_via_tags) queries the *registered model's* tags, so copy
