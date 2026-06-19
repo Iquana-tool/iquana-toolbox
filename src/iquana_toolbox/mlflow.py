@@ -75,6 +75,14 @@ class MLFlowModelRegistry:
                     tags=model.model_info.tags,
                     metadata=model.model_info.model_dump()
                 )
+            # MLflow 3.x attaches ``log_model(tags=...)`` to the LoggedModel entity, not
+            # to the registered model. Our read path (get_model_info /
+            # get_model_infos_via_tags) queries the *registered model's* tags, so copy
+            # them across explicitly here.
+            for key, value in model.model_info.tags.items():
+                self.client.set_registered_model_tag(
+                    model.model_info.registry_key, key, str(value)
+                )
             logger.info(
                 f"Registered model {model.model_info.name} in MLflow with key {model.model_info.registry_key}.")
         else:
