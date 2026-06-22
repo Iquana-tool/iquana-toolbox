@@ -3,6 +3,8 @@ from typing import List, Optional, Literal, Any
 
 from pydantic import BaseModel, Field, ValidationError
 
+from iquana_toolbox.schemas.training import HyperParameter
+
 
 def _parse_optional_bool(value: Any) -> Optional[bool]:
     if isinstance(value, bool):
@@ -145,6 +147,11 @@ class ModelInfo(BaseModel):
         default=False,
         description="Whether or not the model is trainable with new data."
     )
+    training_parameters: List[HyperParameter] = Field(
+        default_factory=list,
+        description="The hyperparameters this model exposes for training. The frontend renders "
+                    "the training config UI generically from these (defaults, ranges, options)."
+    )
 
 
 class PromptedSegmentationModelInfo(ModelInfo):
@@ -166,8 +173,11 @@ class InstanceDiscoveryModelInfo(ModelInfo):
 
 class InstanceSegmentationModelInfo(ModelInfo):
     """ Extends ModelInfo to provide instance segmentation specific information."""
-    label_id: Optional[int] = Field(default=None,
-                                    description="The label id that the model can predict. None for untrained models.")
+    label_ids: List[int] = Field(
+        default_factory=list,
+        description="The label ids (classes) this model predicts. Empty for an untrained base model; "
+                    "populated after (multiclass) training with the dataset's labels."
+    )
 
 
 class SemanticSegmentationModelInfo(ModelInfo):
@@ -190,8 +200,11 @@ def parse_tags_to_model_info(tags: dict[str, Any]) -> ModelInfo:
         if parsed_refinement is not None:
             payload["refinement_supported"] = parsed_refinement
 
-    if "label_id" in payload:
-        payload["label_id"] = _parse_optional_int(payload.get("label_id"))
+    if "label_ids" in payload:
+        payload["label_ids"] = [
+            parsed for parsed in (_parse_optional_int(v) for v in _parse_list_like(payload.get("label_ids")))
+            if parsed is not None
+        ]
 
     if "prompt_types_supported" in payload:
         payload["prompt_types_supported"] = _parse_list_like(payload.get("prompt_types_supported"))
@@ -217,7 +230,7 @@ def parse_tags_to_model_info(tags: dict[str, Any]) -> ModelInfo:
         model_cls = SemanticSegmentationModelInfo
     elif "prompt_types_supported" in payload or "refinement_supported" in payload:
         model_cls = PromptedSegmentationModelInfo
-    elif "label_id" in payload:
+    elif "label_ids" in payload:
         model_cls = InstanceSegmentationModelInfo
 
     try:

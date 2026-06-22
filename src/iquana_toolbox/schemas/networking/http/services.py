@@ -44,7 +44,12 @@ class SemanticSegmentationRequest(BaseServiceRequest):
 
 class InstanceSegmentationRequest(BaseServiceRequest):
     """ A Instance Segmentation Inference Request."""
-    label: Label = Field(..., title="Label", description="Label defining the instance.")
+    label: Label | None = Field(
+        default=None,
+        title="Label",
+        description="Optional label filter. A multiclass model predicts all of its classes; if a label "
+                    "is given, only instances of that label are returned.",
+    )
 
 
 class PromptedSegmentationRequest(BaseServiceRequest):

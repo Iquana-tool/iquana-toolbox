@@ -2,20 +2,26 @@
 DataLoaders for instance segmentation tasks using torchvision and COCO datasets.
 """
 
-from pathlib import Path
 from typing import Optional, Callable, Dict, Any, List
-import torch
+import numpy as np
 from torchvision.datasets import CocoDetection
-from torchvision import transforms
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
 
 
 class COCOInstanceSegmentationDataset(CocoDetection):
     """
     PyTorch Dataset for COCO-style instance segmentation.
 
-    Extends torchvision's CocoDetection to provide instance segmentation annotations
-    (segmentation masks) for each image.
+    Each item is ``(image, target)`` where:
+
+    * ``image`` is an ``np.ndarray`` of shape ``(H, W, 3)`` (uint8, RGB).
+    * ``target`` is ``{"masks": list[np.ndarray (H, W) uint8], "labels": list[int]}``
+      with one binary mask per instance and its COCO ``category_id`` (the dataset
+      label id). Masks are rasterised independently via ``coco.annToMask`` and may
+      overlap, so nested/contained instances are preserved.
+
+    Mapping ``category_id`` to a contiguous class index is left to the consumer
+    (the model knows which labels it is training on).
     """
 
     def __init__(
@@ -36,104 +42,34 @@ class COCOInstanceSegmentationDataset(CocoDetection):
         self.transforms_pipeline = transforms_pipeline
 
     def __getitem__(self, idx: int) -> tuple:
-        """
-        Get an item from the dataset.
+        """Return ``(image_np, {"masks": [...], "labels": [...]})`` for one sample."""
+        image, anns = super().__getitem__(idx)  # PIL image, list of COCO annotation dicts
 
-        Args:
-            idx (int): Index of the item
-
-        Returns:
-            tuple: (image, target) where target contains instance segmentation data
-        """
-        image, targets = super().__getitem__(idx)
-
-        # Process targets to extract segmentation masks and bounding boxes
-        processed_targets = self._process_targets(targets)
+        image_np = np.array(image.convert("RGB"))
+        target = self._process_targets(anns)
 
         if self.transforms_pipeline is not None:
-            image = self.transforms_pipeline(image)
+            image_np = self.transforms_pipeline(image_np)
 
-        return image, processed_targets
+        return image_np, target
 
-    def _process_targets(self, targets: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """
-        Process raw COCO targets to extract segmentation information.
+    def _process_targets(self, anns: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Rasterise each annotation to its own binary mask and keep its category id."""
+        masks: List[np.ndarray] = []
+        labels: List[int] = []
 
-        Args:
-            targets (List[Dict]): Raw COCO annotations
+        for ann in anns:
+            if "category_id" not in ann or "segmentation" not in ann:
+                continue
+            # annToMask handles both polygon and RLE segmentations and rasterises
+            # at the annotation's image size.
+            mask = self.coco.annToMask(ann).astype(np.uint8)
+            if mask.sum() == 0:
+                continue
+            masks.append(mask)
+            labels.append(int(ann["category_id"]))
 
-        Returns:
-            Dict: Processed targets with masks, boxes, labels, and IDs
-        """
-        processed = {
-            "boxes": [],
-            "masks": [],
-            "labels": [],
-            "image_id": [],
-            "iscrowd": [],
-            "area": [],
-        }
-
-        for target in targets:
-            # Extract bounding box
-            if "bbox" in target:
-                x, y, w, h = target["bbox"]
-                box = [x, y, x + w, y + h]
-                processed["boxes"].append(box)
-
-            # Extract segmentation mask (RLE or polygon)
-            if "segmentation" in target:
-                processed["masks"].append(target["segmentation"])
-
-            # Extract category label
-            if "category_id" in target:
-                processed["labels"].append(target["category_id"])
-
-            # Extract image ID
-            if "image_id" in target:
-                processed["image_id"].append(target["image_id"])
-
-            # Extract iscrowd flag (important for evaluation metrics)
-            if "iscrowd" in target:
-                processed["iscrowd"].append(target["iscrowd"])
-
-            # Extract area
-            if "area" in target:
-                processed["area"].append(target["area"])
-
-        # Convert to tensors where appropriate
-        if processed["boxes"]:
-            processed["boxes"] = torch.as_tensor(
-                processed["boxes"], dtype=torch.float32
-            )
-        else:
-            processed["boxes"] = torch.zeros((0, 4), dtype=torch.float32)
-
-        if processed["labels"]:
-            processed["labels"] = torch.as_tensor(
-                processed["labels"], dtype=torch.int64
-            )
-        else:
-            processed["labels"] = torch.zeros((0,), dtype=torch.int64)
-
-        if processed["iscrowd"]:
-            processed["iscrowd"] = torch.as_tensor(
-                processed["iscrowd"], dtype=torch.uint8
-            )
-        else:
-            processed["iscrowd"] = torch.zeros((0,), dtype=torch.uint8)
-
-        if processed["area"]:
-            processed["area"] = torch.as_tensor(
-                processed["area"], dtype=torch.float32
-            )
-        else:
-            processed["area"] = torch.zeros((0,), dtype=torch.float32)
-
-        processed["image_id"] = processed["image_id"]
-        processed["masks"] = processed["masks"]
-
-        return processed
+        return {"masks": masks, "labels": labels}
 
 
 def get_coco_instance_segmentation_dataset(

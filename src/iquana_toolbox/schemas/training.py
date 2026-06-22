@@ -1,6 +1,6 @@
-from typing import Union, Any, Optional
+from typing import Union, Any, Optional, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
 from iquana_toolbox.schemas.database.labels import Label
 
@@ -14,39 +14,42 @@ class BaseTrainingRequest(BaseModel):
 
 
 class InstanceSegmentationTrainingRequest(BaseTrainingRequest):
-    label: Label = Field(..., title="Label", description="Label defining the instances.")
-    annotation_file_url: str = Field(... , title="Annotation File URL",
+    labels: list[Label] = Field(
+        ...,
+        title="Labels",
+        description="The labels (classes) the model should learn to segment. Multiclass by default; "
+                    "pass a single label for the single-class edge case.",
+    )
+    annotation_file_url: str = Field(..., title="Annotation File URL",
                                      description="The path to a COCO annotation file.")
 
 
+# ---------------------------------------------------------------------------
+# Hyperparameter descriptor
+#
+# Models declare which hyperparameters they expose for training via a list of
+# these. One flat shape keeps storage lossless (no pydantic subtype coercion when
+# embedded in ``ModelInfo.training_parameters``) and gives the frontend a single
+# thing to render. The widget is inferred from which optional fields are set:
+#   - ``options`` set            -> dropdown
+#   - ``min_value``/``max_value`` set -> slider
+#   - otherwise                  -> numeric/text/checkbox input (by ``type``)
+# ---------------------------------------------------------------------------
+
+HyperParameterType = Literal["int", "float", "bool", "str"]
+
+
 class HyperParameter(BaseModel):
-    """
-    Represents a hyperparameter for training. This will be used to generate a UI for selecting hyperparameters.
-    """
-    key: str = Field(..., title="Hyperparameter", description="The key of the hyperparameter. This will be passed to "
-                                                              "training scripts.")
-    value: str = Field(..., title="Hyperparameter", description="The value of the hyperparameter. This will be passed to "
-                                                                "training scripts.")
+    """A single trainable hyperparameter a model exposes to the training UI."""
+    key: str = Field(..., title="Key",
+                     description="The key passed to the training script (e.g. 'epochs', 'lr').")
+    label: str = Field(..., title="Label", description="Human-readable name shown in the UI.")
     default_value: Any = Field(..., title="Default value", description="Default hyperparameter value.")
-    description: Any = Field(..., title="Description", description="Description of the hyperparameter.")
-
-
-class HyperParameterSelector(HyperParameter):
-    """
-    Represents a hyperparameter for training. This will be used to generate a UI for selecting hyperparameters.
-    This class implements hyperparameters that have discrete values to choose from. E.g. a lr scheduler or the loss.
-    """
-    options: list[Any] = Field(
-        default_factory=list,
-        description="A list of possible values to select from. E.g. LR schedulers"
-    )
-
-
-class HyperparameterRangeSelector(HyperParameter):
-    """
-        Represents a hyperparameter for training. This will be used to generate a UI for selecting hyperparameters.
-        This class implements hyperparameters that have a range of values to choose from. E.g. learning rate.
-    """
-    min_value: Any = Field(..., title="Minimum value", description="Minimum hyperparameter value.")
-    max_value: Any = Field(..., title="Maximum value", description="Maximum hyperparameter value.")
-    step: Any = Field(..., title="Step value", description="Step hyperparameter value.")
+    description: str = Field("", title="Description", description="Help text shown in the UI.")
+    type: HyperParameterType = Field("float", title="Type",
+                                     description="Value type, used for input coercion in the UI.")
+    options: Optional[list[Any]] = Field(
+        default=None, description="If set, the value is chosen from this discrete set (renders a dropdown).")
+    min_value: Optional[float] = Field(default=None, description="Minimum value (renders a slider with max_value).")
+    max_value: Optional[float] = Field(default=None, description="Maximum value (renders a slider with min_value).")
+    step: Optional[float] = Field(default=None, description="Step between selectable values for a slider.")
