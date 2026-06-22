@@ -12,6 +12,8 @@ class ClientMessageType(StrEnum):
     PROMPTED_INFERENCE = "prompted_inference"  # Perform prompted prompted_segmentation
     SEMANTIC_SELECT_MODEL = "semantic_select_model"  # Select a model for automatic prompted_segmentation
     SEMANTIC_INFERENCE = "semantic_inference"  # Perform automatic prompted_segmentation
+    INSTANCE_SELECT_MODEL = "instance_select_model"  # Select a model for instance segmentation
+    INSTANCE_INFERENCE = "instance_inference"  # Perform automatic instance segmentation
     COMPLETION_SELECT_MODEL = "completion_select_model"  # Select a model for mask completion
     COMPLETION_ENABLE = "completion_enable"  # Enable mask completion
     COMPLETION_DISABLE = "completion_disable"  # Disable mask completion

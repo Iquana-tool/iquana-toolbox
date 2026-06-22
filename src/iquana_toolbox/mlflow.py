@@ -1,5 +1,7 @@
+import inspect
 import logging
 import shutil
+import sys
 import tempfile
 import threading
 from pathlib import Path
@@ -14,6 +16,36 @@ from iquana_toolbox.ai.base_classes import BaseModel
 from iquana_toolbox.schemas.model_info import parse_tags_to_model_info, ModelInfo
 
 logger = logging.getLogger(__name__)
+
+
+def _infer_code_paths(model) -> Optional[list[str]]:
+    """Best-effort source dir(s) to bundle with a logged model.
+
+    ``mlflow.pyfunc.log_model(python_model=<instance>)`` cloudpickles the model by
+    *reference* to its defining module (e.g. ``models.mask2former``). When the model
+    is loaded in a different process (a Celery worker) whose ``sys.path`` does not
+    include the service root, that import fails with ``No module named 'models'``.
+
+    Bundling the model's top-level package via ``code_paths`` makes the artifact
+    self-contained: MLflow copies it under the artifact's ``code/`` dir and puts that
+    on ``sys.path`` at load time. Returns ``None`` when nothing sensible can be
+    inferred (e.g. classes defined in ``__main__``), leaving logging unchanged.
+    """
+    try:
+        module = inspect.getmodule(type(model))
+        if module is None:
+            return None
+        top_name = (module.__name__ or "").split(".")[0]
+        if top_name in ("", "__main__", "builtins"):
+            return None
+        top_pkg = sys.modules.get(top_name)
+        if top_pkg is not None and getattr(top_pkg, "__path__", None):
+            return [str(Path(list(top_pkg.__path__)[0]).resolve())]
+        module_file = getattr(module, "__file__", None)
+        return [str(Path(module_file).resolve())] if module_file else None
+    except Exception:
+        logger.debug("Could not infer code_paths for %r", type(model), exc_info=True)
+        return None
 
 
 class MLFlowModelRegistry:
@@ -76,6 +108,9 @@ class MLFlowModelRegistry:
             artifacts_dir = tempfile.mkdtemp(prefix="iquana_model_artifacts_")
             try:
                 artifacts = model.get_artifacts(artifacts_dir)
+                # Bundle the model's source so it loads in workers that don't have the
+                # service root on sys.path (avoids "No module named 'models'" at load).
+                code_paths = _infer_code_paths(model)
                 with mlflow.start_run():
                     mlflow.pyfunc.log_model(
                         python_model=model,
@@ -83,6 +118,7 @@ class MLFlowModelRegistry:
                         tags=model.model_info.tags,
                         metadata=model.model_info.model_dump(),
                         artifacts=artifacts,
+                        code_paths=code_paths,
                     )
             finally:
                 shutil.rmtree(artifacts_dir, ignore_errors=True)
