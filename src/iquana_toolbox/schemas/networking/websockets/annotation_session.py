@@ -14,10 +14,10 @@ class ClientMessageType(StrEnum):
     SEMANTIC_INFERENCE = "semantic_inference"  # Perform automatic prompted_segmentation
     INSTANCE_SELECT_MODEL = "instance_select_model"  # Select a model for instance segmentation
     INSTANCE_INFERENCE = "instance_inference"  # Perform automatic instance segmentation
-    COMPLETION_SELECT_MODEL = "completion_select_model"  # Select a model for mask completion
-    COMPLETION_ENABLE = "completion_enable"  # Enable mask completion
-    COMPLETION_DISABLE = "completion_disable"  # Disable mask completion
-    COMPLETION_INFERENCE = "completion_inference"
+    SUGGESTION_SELECT_MODEL = "suggestion_select_model"  # Select a model for mask suggestion
+    SUGGESTION_ENABLE = "suggestion_enable"  # Enable mask suggestion
+    SUGGESTION_DISABLE = "suggestion_disable"  # Disable mask suggestion
+    SUGGESTION_INFERENCE = "suggestion_inference"
     OBJECT_ADD_MANUAL = "object_add_manual"  # Add a new object to the annotation session, if it was manually created
     OBJECT_FINALISE = "object_finalise"  # Mark a temporary object as not temporary anymore.
     OBJECT_DELETE = "object_delete"  # Delete an object from the annotation session
