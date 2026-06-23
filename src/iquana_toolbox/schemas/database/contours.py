@@ -232,7 +232,7 @@ class Contour(BaseModel):
         """
         contours, _ = get_contours(binary_mask)
 
-        if only_return_biggest_contour:
+        if only_return_biggest_contour and len(contours) > 0:
             contour = max(contours, key=cv2.contourArea).astype(float)
             contour = normalize_contours(
                 [contour],
