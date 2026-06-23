@@ -12,4 +12,6 @@ dependencies = [
     "pydantic",
     "scipy",
     "scipy-stubs",
+    "torch>=2.12.1",
+    "transformers>=5.12.1",
 ]

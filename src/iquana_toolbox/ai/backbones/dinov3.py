@@ -49,14 +49,16 @@ class DINOv3Backbone(nn.Module):
         self,
         model_id: str = DEFAULT_DINOV3_MODEL,
         image_size: int = 768,
+        token: Optional[str] = None,
         device: Optional[str] = None,
     ):
         super().__init__()
         self.model_id = model_id
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        self.token = token
 
-        self.processor = AutoImageProcessor.from_pretrained(model_id)
-        self.model = AutoModel.from_pretrained(model_id).to(self.device)
+        self.processor = AutoImageProcessor.from_pretrained(model_id, token=self.token)
+        self.model = AutoModel.from_pretrained(model_id, token=self.token).to(self.device)
         # Freeze: no parameter of the backbone ever receives gradients.
         self.model.requires_grad_(False)
         self.model.eval()
