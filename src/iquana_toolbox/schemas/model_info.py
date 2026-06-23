@@ -86,7 +86,7 @@ def _canonical_task(task_value: Any) -> Optional[str]:
         "prompted_segmentation": "prompted_segmentation",
         "interactive_segmentation": "prompted_segmentation",
         "instance_segmentation": "instance_segmentation",
-        "instance_discovery": "instance_discovery",
+        "instance_suggestion": "instance_suggestion",
         "semantic_segmentation": "semantic_segmentation",
     }
     return alias_map.get(normalized)
@@ -166,8 +166,8 @@ class PromptedSegmentationModelInfo(ModelInfo):
                     "prompting, where the user can give multiple prompts to refine the segmentation mask.")
 
 
-class InstanceDiscoveryModelInfo(ModelInfo):
-    """ Extends ModelInfo to provide instance discovery specific information."""
+class InstanceSuggestionModelInfo(ModelInfo):
+    """ Extends ModelInfo to provide instance suggestion specific information."""
     pass
 
 
@@ -224,8 +224,8 @@ def parse_tags_to_model_info(tags: dict[str, Any]) -> ModelInfo:
         model_cls = PromptedSegmentationModelInfo
     elif task == "instance_segmentation":
         model_cls = InstanceSegmentationModelInfo
-    elif task == "instance_discovery":
-        model_cls = InstanceDiscoveryModelInfo
+    elif task == "instance_suggestion":
+        model_cls = InstanceSuggestionModelInfo
     elif task == "semantic_segmentation":
         model_cls = SemanticSegmentationModelInfo
     elif "prompt_types_supported" in payload or "refinement_supported" in payload:

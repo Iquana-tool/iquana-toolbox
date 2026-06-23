@@ -5,9 +5,9 @@ import mlflow
 import numpy as np
 
 from iquana_toolbox.schemas.database.contours import Contour
-from iquana_toolbox.schemas.model_info import ModelInfo, InstanceDiscoveryModelInfo, PromptedSegmentationModelInfo, \
+from iquana_toolbox.schemas.model_info import ModelInfo, InstanceSuggestionModelInfo, PromptedSegmentationModelInfo, \
     InstanceSegmentationModelInfo
-from iquana_toolbox.schemas.networking.http.services import InstanceDiscoveryRequest, PromptedSegmentationRequest, \
+from iquana_toolbox.schemas.networking.http.services import InstanceSuggestionRequest, PromptedSegmentationRequest, \
     BaseServiceRequest
 from iquana_toolbox.schemas.networking.http.services import InstanceSegmentationRequest
 from iquana_toolbox.schemas.training import InstanceSegmentationTrainingRequest
@@ -83,21 +83,21 @@ class BaseModel(ABC, mlflow.pyfunc.PythonModel):
 
 
 
-class InstanceDiscoveryModel(BaseModel):
+class InstanceSuggestionModel(BaseModel):
     """
-        Abstract base class for instance discovery models.
-        Instance Discovery models take as input an image and an incomplete set of instances, which they have to complete
+        Abstract base class for instance suggestion models.
+        Instance Suggestion models take as input an image and an incomplete set of instances, which they have to complete
         or at least predict some new instances. They can additionally take a label as input (e.g. Prompted Concept Segmentation).
     """
-    model_info: InstanceDiscoveryModelInfo
+    model_info: InstanceSuggestionModelInfo
 
     @abstractmethod
     def predict(self,
                 context: Any,
-                model_input: list[InstanceDiscoveryRequest],
+                model_input: list[InstanceSuggestionRequest],
                 params: dict[str, Any] | None = None) -> tuple[np.ndarray, np.ndarray]:
         """
-        Process an InstanceDiscoveryRequest.
+        Process an InstanceSuggestionRequest.
         """
         pass
 
