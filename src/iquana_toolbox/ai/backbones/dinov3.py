@@ -118,13 +118,23 @@ class DINOv3Backbone(nn.Module):
         return proc["pixel_values"].to(self.device)
 
     @torch.no_grad()
-    def forward(self, pixel_values: torch.Tensor) -> torch.Tensor:
-        """Extract dense patch features as ``(B, hidden_size, Hp, Wp)``."""
+    def forward(
+        self, pixel_values: torch.Tensor, return_cls: bool = False
+    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+        """Extract dense patch features as ``(B, hidden_size, Hp, Wp)``.
+
+        With ``return_cls=True`` also return the global ``CLS`` token ``(B, hidden_size)`` --
+        a holistic descriptor of the whole image, used e.g. to re-identify a crop against a
+        reference. For ConvNeXt-style backbones (no CLS token) the CLS is approximated by a
+        global average pool of the spatial map.
+        """
         out = self.model(pixel_values=pixel_values)
         last_hidden = out.last_hidden_state
 
         # ConvNeXt-style backbones already return a spatial map (B, C, H, W).
         if last_hidden.dim() == 4:
+            if return_cls:
+                return last_hidden, last_hidden.mean(dim=(2, 3))
             return last_hidden
 
         batch = pixel_values.shape[0]
@@ -134,4 +144,8 @@ class DINOv3Backbone(nn.Module):
         # robust regardless of how many special tokens a given variant carries).
         num_prefix = last_hidden.shape[1] - hp * wp
         patches = last_hidden[:, num_prefix:, :]  # (B, Hp*Wp, C)
-        return patches.transpose(1, 2).reshape(batch, self.hidden_size, hp, wp)
+        grid = patches.transpose(1, 2).reshape(batch, self.hidden_size, hp, wp)
+        if return_cls:
+            cls = last_hidden[:, 0, :]            # the CLS token is the first prefix token
+            return grid, cls
+        return grid
