@@ -3,7 +3,7 @@ from logging import getLogger
 
 import cv2
 import numpy as np
-from pydantic import BaseModel, field_validator, Field, model_validator
+from pydantic import BaseModel, field_validator, Field
 
 from iquana_toolbox.schemas.database.masks import BinaryMask
 from iquana_toolbox.schemas.database.quantification import QuantificationModel
@@ -48,15 +48,6 @@ class Contour(BaseModel):
     quantification: QuantificationModel | None = Field(default=None, description="Quantification of the contour. Does "
                                                                                  "not need to be provided.")
 
-    @model_validator(mode="after")
-    def validate_after(self):
-        """ Validate after initialization. Check if quantifications are computed. """
-        if self.quantification is None:
-            self.quantification = QuantificationModel.from_cv_contour(self.contour)
-        elif self.quantification.is_empty:
-            self.quantification.parse_cv_contour(self.contour)
-        return self
-
     @field_validator('x', 'y')
     def validate_coordinates(cls, value):
         return [min(max(coord, 0.), 1.) for coord in value]
@@ -68,6 +59,39 @@ class Contour(BaseModel):
         Opencv contours have the form Number of points x empty dimension x Tuple of x and y coordinate.
         """
         return np.expand_dims(self.points, axis=1)
+
+    def compute_quantification(self,
+                               width: int,
+                               height: int,
+                               scale_x: float = 1.0,
+                               scale_y: float = 1.0,
+                               unit: str = "px") -> QuantificationModel:
+        """
+        Compute the quantification metrics of this contour in PIXEL space (optionally scaled to
+        physical units) and store them in ``self.quantification``.
+
+        The stored x / y coordinates are normalized to [0, 1], so the image dimensions are required
+        to rescale them to pixels before computing any geometry. Computing metrics directly on the
+        normalized coordinates would anisotropically distort the shape on non-square images.
+
+        :param width: Image width in pixels.
+        :param height: Image height in pixels.
+        :param scale_x: Physical size of one pixel along x (e.g. mm per pixel). Defaults to 1.
+        :param scale_y: Physical size of one pixel along y (e.g. mm per pixel). Defaults to 1.
+        :param unit: Unit that scale_x / scale_y are expressed in. Defaults to "px".
+        :returns: The computed QuantificationModel (also assigned to ``self.quantification``).
+        """
+        points_px = np.stack([
+            np.array(self.x, dtype=np.float64) * width,
+            np.array(self.y, dtype=np.float64) * height,
+        ], axis=-1) if len(self.x) > 0 else np.empty((0, 2), dtype=np.float64)
+        self.quantification = QuantificationModel.from_contour(
+            points_px,
+            scale_x=scale_x,
+            scale_y=scale_y,
+            unit=unit,
+        )
+        return self.quantification
 
     @property
     def points(self) -> np.ndarray[tuple[float, float]]:

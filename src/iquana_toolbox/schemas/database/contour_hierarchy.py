@@ -225,9 +225,15 @@ class ContourHierarchy(BaseModel):
         metrics = defaultdict(list)
         child_counts = defaultdict(list)
         for contour in contours:
-            # Get the quantifications from the quantification model
+            # Get the quantifications from the quantification model.
+            # Quantification is computed lazily (in pixel space) when a contour is persisted,
+            # so it can still be None here; skip non-numeric fields such as "unit".
+            if contour.quantification is None:
+                logger.warning(f"Contour {contour.id} has no quantification; skipping it in the label metrics.")
+                continue
             for quant_key, quant_value in contour.quantification.model_dump().items():
-                metrics[quant_key].append(quant_value)
+                if isinstance(quant_value, (int, float)):
+                    metrics[quant_key].append(quant_value)
 
             # Count the children
             _child_counts = defaultdict(lambda: 0)

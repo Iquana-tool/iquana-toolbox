@@ -15,3 +15,13 @@ dependencies = [
     "torch>=2.12.1",
     "transformers>=5.12.1",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+# The project is not installed into its own venv, so put src/ on the path for tests.
+pythonpath = ["src"]
+testpaths = ["tests"]
