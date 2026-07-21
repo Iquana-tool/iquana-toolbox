@@ -10,7 +10,7 @@ from iquana_toolbox.schemas.database.labels import Label, LabelHierarchy
 from iquana_toolbox.schemas.database.masks import BinaryMask
 from iquana_toolbox.schemas.prompts import Prompts
 
-
+# The following contains inference requests
 # --- Base Model ---
 
 class BaseImageRequest(BaseModel):
@@ -38,17 +38,17 @@ class BaseServiceRequest(BaseImageRequest):
 
 
 class SemanticSegmentationRequest(BaseServiceRequest):
-    """ A Semantic Segmentation Inference Request."""
+    """ A Semantic Segmentation Inference Request. Deprecated"""
     pass
 
 
-class MultiSemanticSegmentationRequest(BaseModel):
-    """ Expands the BaseServiceRequest with a label hierarchy for the model."""
-    images: list[BaseImageRequest] = Field(..., title="Images", description="Images to expand.")
-    model_registry_key: str = Field(..., title="Model registry key", description="Model identifier string.")
-    label_hierarchy: LabelHierarchy = Field(
-        ..., title="Label hierarchy",
-        description="A hierarchy of the labels. Describes which labels should be present in the mask."
+class InstanceSegmentationRequest(BaseServiceRequest):
+    """ A Instance Segmentation Inference Request."""
+    label: Label | None = Field(
+        default=None,
+        title="Label",
+        description="Optional label filter. A multiclass model predicts all of its classes; if a label "
+                    "is given, only instances of that label are returned.",
     )
 
 
@@ -58,10 +58,10 @@ class PromptedSegmentationRequest(BaseServiceRequest):
     previous_mask: BinaryMask | None = Field(None, title="Previous Mask")
 
 
-class CompletionRequest(BaseServiceRequest):
-    """ Model for instance discovery with image exemplars and concepts. """
+class InstanceSuggestionRequest(BaseServiceRequest):
+    """ Model for instance suggestion with image exemplars and concepts. """
     positive_exemplars: list[BinaryMask] = Field(..., description="Exemplars is a list of RLE encoded binary masks")
-    negative_exemplars: list[BinaryMask] | None = Field(..., title="Negative exemplars")
+    negative_exemplars: list[BinaryMask] | None = Field(None, title="Negative exemplars")
     concept: Label | None = Field(default=None, description="Optional label defining the concept.")
 
     @cached_property
@@ -116,20 +116,3 @@ class CompletionRequest(BaseServiceRequest):
                 raise ValueError("Unsupported format: {}".format(format))
             bboxes.append(bbox)
         return bboxes
-
-
-class ServiceRegistrationRequest(BaseModel):
-    """Request to register the service with the main backend."""
-    backend_url: str
-    celery_broker_url: str  # e.g., redis://celery-host:6379/0
-    mlflow_tracking_uri: str  # e.g., http://mlflow-host:5000
-    registration_token: str  # For authentication
-    service_name: Optional[str] = None
-    api_key: Optional[str] = None  # Optional API key for service access
-
-
-class ServiceRegistrationResponse(BaseModel):
-    """Response after service registration."""
-    success: bool
-    message: str
-    service_id: Optional[str] = None

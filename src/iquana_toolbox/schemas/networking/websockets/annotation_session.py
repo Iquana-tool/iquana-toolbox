@@ -12,10 +12,12 @@ class ClientMessageType(StrEnum):
     PROMPTED_INFERENCE = "prompted_inference"  # Perform prompted prompted_segmentation
     SEMANTIC_SELECT_MODEL = "semantic_select_model"  # Select a model for automatic prompted_segmentation
     SEMANTIC_INFERENCE = "semantic_inference"  # Perform automatic prompted_segmentation
-    COMPLETION_SELECT_MODEL = "completion_select_model"  # Select a model for mask completion
-    COMPLETION_ENABLE = "completion_enable"  # Enable mask completion
-    COMPLETION_DISABLE = "completion_disable"  # Disable mask completion
-    COMPLETION_INFERENCE = "completion_inference"
+    INSTANCE_SELECT_MODEL = "instance_select_model"  # Select a model for instance segmentation
+    INSTANCE_INFERENCE = "instance_inference"  # Perform automatic instance segmentation
+    SUGGESTION_SELECT_MODEL = "suggestion_select_model"  # Select a model for mask suggestion
+    SUGGESTION_ENABLE = "suggestion_enable"  # Enable mask suggestion
+    SUGGESTION_DISABLE = "suggestion_disable"  # Disable mask suggestion
+    SUGGESTION_INFERENCE = "suggestion_inference"
     OBJECT_ADD_MANUAL = "object_add_manual"  # Add a new object to the annotation session, if it was manually created
     OBJECT_FINALISE = "object_finalise"  # Mark a temporary object as not temporary anymore.
     OBJECT_DELETE = "object_delete"  # Delete an object from the annotation session
@@ -49,7 +51,7 @@ class Message(BaseModel):
     id: str = Field(..., description="Unique message ID to correlate messages.")
     type: str = Field(..., description="Identifier for what this message should trigger or what is being delivered.")
     message: str | None = Field(default=None, description="Additional human readable message.")
-    success: bool | None = Field(..., description="Whether the message was successful. Can be ignored for requests.")
+    success: bool | None = Field(None, description="Whether the message was successful. Can be ignored for requests.")
     data: Union[dict, list, None] = Field(default_factory=dict, description="Data to send.")
 
 
