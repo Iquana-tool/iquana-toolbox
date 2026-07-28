@@ -116,3 +116,67 @@ class InstanceSuggestionRequest(BaseServiceRequest):
                 raise ValueError("Unsupported format: {}".format(format))
             bboxes.append(bbox)
         return bboxes
+
+
+class EmbedRegion(BaseModel):
+    """One masked region to embed, tagged with an id the caller maps the result back to.
+
+    ``region_id`` is opaque to the service -- typically a contour id -- and is echoed on the
+    returned :class:`EmbeddingVector` so the caller can persist the vector against the right row.
+    """
+
+    region_id: int = Field(
+        ...,
+        description="Caller's id for this region (e.g. a contour id); echoed on the returned vector.",
+    )
+    mask: BinaryMask = Field(..., description="RLE-encoded binary mask selecting the region's foreground.")
+
+    class Config:
+        ignored_types = (cached_property,)
+
+    @cached_property
+    def region_mask(self) -> np.ndarray:
+        """The decoded ``(H, W)`` boolean foreground mask."""
+        return self.mask.mask
+
+
+class EmbedRequest(BaseServiceRequest):
+    """Request to precompute feature embeddings for an image and/or its masked regions.
+
+    ``image_kinds`` are whole-image descriptors (e.g. ``"image_cls"``); each entry of
+    ``regions`` yields one masked-region descriptor (``"region_mean"``). Both default to a
+    single whole-image ``image_cls``; a caller may set either, but a request that asks for
+    nothing (empty ``image_kinds`` and empty ``regions``) is a no-op. Which kinds a given
+    embedder model actually understands is up to the model -- unknown kinds are skipped.
+    """
+
+    image_kinds: list[str] = Field(
+        default_factory=lambda: ["image_cls"],
+        description="Whole-image descriptor kinds to compute, e.g. ['image_cls']. May be empty.",
+    )
+    regions: list[EmbedRegion] = Field(
+        default_factory=list,
+        description="Masked regions to embed (each -> one 'region_mean' vector). May be empty.",
+    )
+
+
+class EmbeddingVector(BaseModel):
+    """One computed embedding: the vector plus what it describes and which backbone made it.
+
+    ``region_id`` is ``None`` for whole-image kinds and the region's id for region kinds.
+    ``model_id`` is the concrete backbone (e.g. ``facebook/dinov3-vitb16-pretrain-lvd1689m``),
+    not the registry key -- embeddings are only comparable within one ``model_id``, so the
+    store persists it for versioning.
+    """
+
+    # ``model_id`` sits in pydantic's protected ``model_`` namespace; opt out so it is a plain
+    # field (the store column is ``model_id``, so the name is worth keeping).
+    model_config = {"protected_namespaces": ()}
+
+    kind: str = Field(..., description="What the vector represents, e.g. 'image_cls' or 'region_mean'.")
+    region_id: Optional[int] = Field(
+        default=None, description="Region id for region kinds; None for whole-image kinds."
+    )
+    model_id: str = Field(..., description="The backbone that produced the vector (for store versioning).")
+    dim: int = Field(..., description="Vector dimensionality.")
+    vector: list[float] = Field(..., description="The L2-normalized embedding.")
