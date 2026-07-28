@@ -180,3 +180,45 @@ class EmbeddingVector(BaseModel):
     model_id: str = Field(..., description="The backbone that produced the vector (for store versioning).")
     dim: int = Field(..., description="Vector dimensionality.")
     vector: list[float] = Field(..., description="The L2-normalized embedding.")
+
+
+class CrossImageExemplar(BaseModel):
+    """One exemplar for cross-image concept transfer: an annotated object *in its own image*.
+
+    Unlike :class:`InstanceSuggestionRequest`'s exemplars (masks on the request's single
+    image), each cross-image exemplar carries its own ``image_url`` -- the retrieval layer
+    picks exemplars from *other* images, and the concat handler needs each exemplar's pixels
+    to paste beside the target.
+    """
+
+    image_url: str = Field(..., title="Exemplar image URL")
+    mask: BinaryMask = Field(..., description="RLE-encoded binary mask of the exemplar object in its image.")
+
+    class Config:
+        ignored_types = (cached_property,)
+
+    @cached_property
+    def image(self) -> np.ndarray:
+        """The exemplar's source image as an ``(H, W, 3)`` array."""
+        return get_image_from_url_cached(self.image_url)
+
+    @cached_property
+    def exemplar_mask(self) -> np.ndarray:
+        """The decoded ``(H, W)`` boolean object mask."""
+        return self.mask.mask
+
+
+class CrossImageSuggestionRequest(BaseServiceRequest):
+    """Suggest instances of a concept on a target image, using exemplars from *other* images.
+
+    SAM 3's prompted concept segmentation is intra-image only; this request drives the concat
+    workaround -- the exemplar image(s) + mask(s) are composited beside the target so the model
+    can transfer the concept across the seam. ``image_url`` (from the base) is the target being
+    annotated; ``exemplars`` are the cross-image references (typically the top hits from the
+    retrieval strategy); ``concept`` optionally adds a text prompt alongside the visual ones.
+    """
+
+    exemplars: list[CrossImageExemplar] = Field(
+        ..., min_length=1, description="Cross-image exemplars (each an image + object mask)."
+    )
+    concept: Label | None = Field(default=None, description="Optional label adding a text prompt.")
