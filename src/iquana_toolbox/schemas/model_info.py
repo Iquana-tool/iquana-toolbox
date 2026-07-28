@@ -92,6 +92,46 @@ def _canonical_task(task_value: Any) -> Optional[str]:
     return alias_map.get(normalized)
 
 
+class ModelPerformance(BaseModel):
+    """Approximate performance characteristics of a model.
+
+    These are reference figures for display and sorting in the frontend, not
+    guarantees. Latency and GFLOPs are meaningless without context, so the
+    device and input size they were measured at travel alongside the numbers.
+    """
+    num_parameters: Optional[int] = Field(
+        default=None,
+        description="Number of trainable parameters. Formatted (e.g. '1.2M') in the frontend.",
+    )
+    gflops: Optional[float] = Field(
+        default=None,
+        description="Approximate GFLOPs for a single forward pass at reference_input_size.",
+    )
+    latency_ms: Optional[float] = Field(
+        default=None,
+        description="Approximate single-image inference latency in milliseconds, "
+                    "measured on reference_device at reference_input_size.",
+    )
+    throughput_img_s: Optional[float] = Field(
+        default=None,
+        description="Approximate throughput in images per second on reference_device.",
+    )
+    peak_vram_mb: Optional[int] = Field(
+        default=None,
+        description="Approximate peak GPU memory in MB for a single-image forward pass.",
+    )
+    reference_device: Optional[str] = Field(
+        default=None,
+        examples=["A100", "RTX 4090", "CPU"],
+        description="Device the latency / throughput / VRAM figures were measured on.",
+    )
+    reference_input_size: Optional[List[int]] = Field(
+        default=None,
+        examples=[[1024, 1024]],
+        description="Input size (h, w) the GFLOPs / latency figures were measured at.",
+    )
+
+
 class ModelInfo(BaseModel):
     """
     A model info object. This is used to gather information about the model, which can be displayed in the frontend.
@@ -151,6 +191,27 @@ class ModelInfo(BaseModel):
         default_factory=list,
         description="The hyperparameters this model exposes for training. The frontend renders "
                     "the training config UI generically from these (defaults, ranges, options)."
+    )
+    architecture: Optional[str] = Field(
+        default=None,
+        examples=["U-Net", "SAM2-Tiny", "Mask R-CNN"],
+        description="The model architecture / backbone family. Used to group related models "
+                    "and, later, to match user-uploaded weights to a known loader."
+    )
+    license: Optional[str] = Field(
+        default=None,
+        examples=["Apache-2.0", "MIT", "CC-BY-NC-4.0"],
+        description="The license the model weights are distributed under."
+    )
+    input_resolution: Optional[List[int]] = Field(
+        default=None,
+        examples=[[1024, 1024]],
+        description="The input resolution (h, w) the model expects or was trained at."
+    )
+    performance: Optional[ModelPerformance] = Field(
+        default=None,
+        description="Approximate performance characteristics (params, GFLOPs, latency) "
+                    "for display and sorting in the model zoo."
     )
 
 
@@ -214,6 +275,16 @@ def parse_tags_to_model_info(tags: dict[str, Any]) -> ModelInfo:
 
     if "tags" in payload:
         payload["tags"] = _parse_dict_like(payload.get("tags"))
+
+    if "input_resolution" in payload:
+        payload["input_resolution"] = [
+            parsed for parsed in (_parse_optional_int(v) for v in _parse_list_like(payload.get("input_resolution")))
+            if parsed is not None
+        ] or None
+
+    if "performance" in payload and isinstance(payload.get("performance"), str):
+        # Fallback path: performance may arrive as a stringified dict in tags.
+        payload["performance"] = _parse_dict_like(payload.get("performance")) or None
 
     task = _canonical_task(payload.get("task"))
     if task is None:
