@@ -122,25 +122,34 @@ class MLFlowModelRegistry:
                     )
             finally:
                 shutil.rmtree(artifacts_dir, ignore_errors=True)
-            # MLflow 3.x attaches ``log_model(tags=...)`` to the LoggedModel entity, not
-            # to the registered model. Our read path (get_model_info /
-            # get_model_infos_via_tags) queries the *registered model's* tags, so copy
-            # them across explicitly here.
-            for key, value in model.model_info.tags.items():
-                self.client.set_registered_model_tag(
-                    model.model_info.registry_key, key, str(value)
-                )
-            # ``log_model`` only stores the description inside the artifact metadata, but
-            # consumers read ``RegisteredModel.description`` directly. Mirror it across.
-            if model.model_info.description:
-                self.client.update_registered_model(
-                    model.model_info.registry_key,
-                    description=model.model_info.description,
-                )
             logger.info(
                 f"Registered model {model.model_info.name} in MLflow with key {model.model_info.registry_key}.")
         else:
-            logger.info(f"Model {model.model_info.name} is an already registered base model. Skipped.")
+            logger.info(f"Model {model.model_info.name} is an already registered base model. "
+                        f"Skipped re-logging; syncing its tags.")
+
+        # Always synced, on both paths, because tags are *metadata about the code* -- not
+        # about the weights. A base model's artifact is skipped above (its weights have not
+        # changed), but the class it points at may well have: adding a capability mixin to a
+        # model changes which tasks it advertises, and the discovery layer filters on exactly
+        # these tags. Syncing only when re-logging left such a model permanently invisible to
+        # the surface it had just gained -- and since cloudpickle stores importable classes by
+        # *reference*, the loaded object already had the new capability; only the tags lied.
+        #
+        # This is also the mechanism MLflow 3.x forces on us regardless: ``log_model(tags=...)``
+        # attaches them to the LoggedModel entity, while our read path
+        # (get_model_info / get_model_infos_via_tags) queries the *registered model's* tags.
+        for key, value in model.model_info.tags.items():
+            self.client.set_registered_model_tag(
+                model.model_info.registry_key, key, str(value)
+            )
+        # ``log_model`` only stores the description inside the artifact metadata, but
+        # consumers read ``RegisteredModel.description`` directly. Mirror it across.
+        if model.model_info.description:
+            self.client.update_registered_model(
+                model.model_info.registry_key,
+                description=model.model_info.description,
+            )
 
         self._invalidate_model_cache(model.model_info.registry_key)
 
