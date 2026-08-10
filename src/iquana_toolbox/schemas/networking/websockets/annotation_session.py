@@ -4,6 +4,10 @@ from enum import StrEnum
 
 
 class ClientMessageType(StrEnum):
+    # Point the session at a different image. One socket per user: the client keeps the
+    # connection and re-targets it, instead of tearing it down and re-running the whole
+    # session initialisation for every image.
+    SWITCH_IMAGE = "switch_image"
     FOCUS_IMAGE = "focus_image"  # Focus on a specific region of the image
     UNFOCUS_IMAGE = "unfocus_image"  # Revert to the original image
     SELECT_REFINEMENT_OBJECT = "refine_object"  # Refine an existing object with new prompts
@@ -32,6 +36,7 @@ class ClientMessageType(StrEnum):
 
 class ServerMessageType(StrEnum):
     SESSION_INITIALIZED = "session_initialized"  # Session has been initialized, gives info about running backends
+    IMAGE_SWITCHED = "image_switched"  # The session now points at another image; carries that image's mask state
     OBJECTS = "objects"  # Gives all objects of the mask
     OBJECT_ADDED = "object_added"  # Send a newly added object
     OBJECT_REMOVED = "object_removed" # Tell which object has been deleted

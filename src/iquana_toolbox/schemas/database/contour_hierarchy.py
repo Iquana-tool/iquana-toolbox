@@ -122,6 +122,17 @@ class ContourHierarchy(BaseModel):
             self.label_id_to_contours.setdefault(contour.label_id, []).append(contour)
         return contour, changed
 
+    def dump_for_client(self) -> dict:
+        """ Serialize only what a client needs to draw the objects: the contour tree.
+
+        ``model_dump()`` also writes out ``id_to_contour`` and ``label_id_to_contours``,
+        which are lookup views over the very same objects. Every contour therefore lands
+        on the wire at least three times, and a nested one once more for each of its
+        ancestors -- on a large mask that dominates both the serialization time and the
+        payload size. Clients rebuild those indexes from the tree anyway, so send the tree.
+        """
+        return {"root_contours": [contour.model_dump() for contour in self.root_contours]}
+
     def dump_contours_as_list(self, breadth_first: bool = True) -> list[Contour]:
         """ Dump all contours in the hierarchy as a list. Can be done in breadth first or depth first order. """
         contours_list = []
