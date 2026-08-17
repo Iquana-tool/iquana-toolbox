@@ -1,6 +1,6 @@
 import warnings
 from functools import cached_property
-from typing import Union, Literal, Optional
+from typing import Any, Literal, Optional, Union
 
 import numpy as np
 from pydantic import BaseModel, Field
@@ -32,6 +32,21 @@ class BaseImageRequest(BaseModel):
 class BaseServiceRequest(BaseImageRequest):
     """ Expands the BaseImageRequest with a model_registry_key. """
     model_registry_key: str = Field(..., title="Model registry key", description="Model identifier string.")
+    parameters: dict[str, Any] = Field(
+        default_factory=dict,
+        title="Parameters",
+        description="Normalized model hyperparameters and overrides.",
+    )
+    contour_ids: list[int] = Field(
+        default_factory=list,
+        title="Contour IDs",
+        description="Resolved contour IDs for instance-level conditioning.",
+    )
+    embeddings: dict[str, list[float]] = Field(
+        default_factory=dict,
+        title="Embeddings",
+        description="Resolved embedding vectors by kind.",
+    )
 
 
 # --- Concrete Implementations ---
@@ -219,6 +234,6 @@ class CrossImageSuggestionRequest(BaseServiceRequest):
     """
 
     exemplars: list[CrossImageExemplar] = Field(
-        ..., min_length=1, description="Cross-image exemplars (each an image + object mask)."
+        default_factory=list, description="Cross-image exemplars (each an image + object mask)."
     )
     concept: Label | None = Field(default=None, description="Optional label adding a text prompt.")
