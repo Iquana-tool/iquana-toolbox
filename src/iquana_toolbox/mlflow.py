@@ -99,7 +99,8 @@ class MLFlowModelRegistry:
 
         mlflow.set_tracking_uri(self.tracking_uri)
 
-        if ((not self.check_registered(model.model_info.registry_key))
+        model_is_registered = self.check_registered(model.model_info.registry_key)
+        if ((not model_is_registered)
                 or "user_id" in model.model_info.tags or "dataset_id" in model.model_info.tags):
             # If the model is not registered or this is a trained model (user_id or dataset_id is present), we log a new
             # version of the model.
@@ -145,6 +146,13 @@ class MLFlowModelRegistry:
         for key, value in model_info_tags.items():
             self.client.set_registered_model_tag(
                 model.model_info.registry_key, key, str(value)
+            )
+        if model_is_registered and not model.model_info.input_contracts:
+            # Keep an explicit empty value authoritative over stale contracts in
+            # the artifact metadata. Removing the tag would make discovery fall
+            # back to that stale metadata again.
+            self.client.set_registered_model_tag(
+                model.model_info.registry_key, "input_contracts", "[]"
             )
         # ``log_model`` only stores the description inside the artifact metadata, but
         # consumers read ``RegisteredModel.description`` directly. Mirror it across.

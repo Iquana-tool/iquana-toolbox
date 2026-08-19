@@ -52,6 +52,9 @@ class BaseServiceRequest(BaseImageRequest):
         title="Embeddings",
         description="Resolved embedding vectors by kind.",
     )
+    exemplars: list["CrossImageExemplar"] = Field(
+        default_factory=list, description="Cross-image exemplars (each an image + object mask)."
+    )
 
 
 # --- Concrete Implementations ---
@@ -238,7 +241,4 @@ class CrossImageSuggestionRequest(BaseServiceRequest):
     retrieval strategy); ``concept`` optionally adds a text prompt alongside the visual ones.
     """
 
-    exemplars: list[CrossImageExemplar] = Field(
-        default_factory=list, description="Cross-image exemplars (each an image + object mask)."
-    )
     concept: Label | None = Field(default=None, description="Optional label adding a text prompt.")

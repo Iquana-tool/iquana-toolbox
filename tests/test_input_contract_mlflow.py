@@ -1,4 +1,6 @@
 import json
+from types import SimpleNamespace
+from unittest.mock import MagicMock, call, patch
 
 from iquana_toolbox.mlflow import MLFlowModelRegistry
 from iquana_toolbox.schemas.input_contract import ConditioningSpec, InputContract
@@ -55,3 +57,49 @@ def test_mlflow_discovery_tags_leave_legacy_contracts_absent() -> None:
     tags = MLFlowModelRegistry._model_info_tags(info)
 
     assert "input_contracts" not in tags
+
+
+def test_registered_model_sync_publishes_authoritative_empty_contract_tag() -> None:
+    registry = MLFlowModelRegistry("http://example")
+    registry.client = MagicMock()
+    registry.check_registered = MagicMock(return_value=True)
+    model_info = ModelInfo(
+        registry_key="demo",
+        name="Demo",
+        description="Demo model",
+        usage_tip="Use it",
+        tags={"task": "instance-segmentation", "team": "cv"},
+        input_contracts=[],
+    )
+
+    with patch("iquana_toolbox.mlflow.mlflow.set_tracking_uri"):
+        registry.register_model(SimpleNamespace(model_info=model_info))
+
+    registry.client.set_registered_model_tag.assert_any_call("demo", "input_contracts", "[]")
+    registry.client.delete_registered_model_tag.assert_not_called()
+    registry.client.set_registered_model_tag.assert_has_calls(
+        [
+            call("demo", "task", "instance-segmentation"),
+            call("demo", "team", "cv"),
+        ],
+        any_order=True,
+    )
+
+
+def test_registered_model_sync_writes_empty_contract_tag_when_missing() -> None:
+    registry = MLFlowModelRegistry("http://example")
+    registry.client = MagicMock()
+    registry.check_registered = MagicMock(return_value=True)
+    model_info = ModelInfo(
+        registry_key="demo",
+        name="Demo",
+        description="Demo model",
+        usage_tip="Use it",
+        tags={"task": "instance-segmentation"},
+        input_contracts=[],
+    )
+
+    with patch("iquana_toolbox.mlflow.mlflow.set_tracking_uri"):
+        registry.register_model(SimpleNamespace(model_info=model_info))
+
+    registry.client.set_registered_model_tag.assert_any_call("demo", "input_contracts", "[]")
