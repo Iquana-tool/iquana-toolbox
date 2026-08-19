@@ -3,8 +3,8 @@ This repo contains common pydantic schemas used by every service and the main ba
 
 ## Scope: no deep-learning runtime
 
-This package is installed by *every* consumer — including the backend and
-`iquana-service-core`, neither of which runs a model. It therefore must stay free
+This package is installed by *every* consumer — including the backend,
+which does not run models directly. It therefore must stay free
 of `torch`, `torchvision` and `transformers`: a transitive torch drags the entire
 CUDA toolkit (nvidia-*, triton, ~GBs) into every `uv sync`.
 

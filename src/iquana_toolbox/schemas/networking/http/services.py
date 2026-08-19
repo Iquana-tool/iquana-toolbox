@@ -42,6 +42,11 @@ class BaseServiceRequest(BaseImageRequest):
         title="Contour IDs",
         description="Resolved contour IDs for instance-level conditioning.",
     )
+    positive_exemplars: list[BinaryMask] = Field(
+        default_factory=list,
+        title="Positive Exemplars",
+        description="Resolved binary mask exemplars for instance-level conditioning.",
+    )
     embeddings: dict[str, list[float]] = Field(
         default_factory=dict,
         title="Embeddings",
