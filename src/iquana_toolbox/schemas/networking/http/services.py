@@ -50,7 +50,12 @@ class BaseServiceRequest(BaseImageRequest):
     embeddings: dict[str, list[float]] = Field(
         default_factory=dict,
         title="Embeddings",
-        description="Resolved embedding vectors by kind.",
+        description="Resolved single embedding vectors by kind.",
+    )
+    exemplar_embeddings: dict[str, list[list[float]]] = Field(
+        default_factory=dict,
+        title="Exemplar Embeddings",
+        description="Resolved in-context exemplar embedding vectors grouped by kind.",
     )
     exemplars: list["CrossImageExemplar"] = Field(
         default_factory=list, description="Cross-image exemplars (each an image + object mask)."
