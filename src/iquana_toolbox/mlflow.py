@@ -1,4 +1,5 @@
 import inspect
+import json
 import logging
 import shutil
 import sys
@@ -98,7 +99,8 @@ class MLFlowModelRegistry:
 
         mlflow.set_tracking_uri(self.tracking_uri)
 
-        if ((not self.check_registered(model.model_info.registry_key))
+        model_is_registered = self.check_registered(model.model_info.registry_key)
+        if ((not model_is_registered)
                 or "user_id" in model.model_info.tags or "dataset_id" in model.model_info.tags):
             # If the model is not registered or this is a trained model (user_id or dataset_id is present), we log a new
             # version of the model.
@@ -111,12 +113,13 @@ class MLFlowModelRegistry:
                 # Bundle the model's source so it loads in workers that don't have the
                 # service root on sys.path (avoids "No module named 'models'" at load).
                 code_paths = _infer_code_paths(model)
+                model_info_tags = self._model_info_tags(model.model_info)
                 with mlflow.start_run():
                     mlflow.pyfunc.log_model(
                         python_model=model,
                         registered_model_name=model.model_info.registry_key,
-                        tags=model.model_info.tags,
-                        metadata=model.model_info.model_dump(),
+                        tags=model_info_tags,
+                        metadata=model.model_info.model_dump(mode="json"),
                         artifacts=artifacts,
                         code_paths=code_paths,
                     )
@@ -139,9 +142,17 @@ class MLFlowModelRegistry:
         # This is also the mechanism MLflow 3.x forces on us regardless: ``log_model(tags=...)``
         # attaches them to the LoggedModel entity, while our read path
         # (get_model_info / get_model_infos_via_tags) queries the *registered model's* tags.
-        for key, value in model.model_info.tags.items():
+        model_info_tags = self._model_info_tags(model.model_info)
+        for key, value in model_info_tags.items():
             self.client.set_registered_model_tag(
                 model.model_info.registry_key, key, str(value)
+            )
+        if model_is_registered and not model.model_info.input_contracts:
+            # Keep an explicit empty value authoritative over stale contracts in
+            # the artifact metadata. Removing the tag would make discovery fall
+            # back to that stale metadata again.
+            self.client.set_registered_model_tag(
+                model.model_info.registry_key, "input_contracts", "[]"
             )
         # ``log_model`` only stores the description inside the artifact metadata, but
         # consumers read ``RegisteredModel.description`` directly. Mirror it across.
@@ -152,6 +163,26 @@ class MLFlowModelRegistry:
             )
 
         self._invalidate_model_cache(model.model_info.registry_key)
+
+    @staticmethod
+    def _model_info_tags(model_info: ModelInfo) -> dict[str, str]:
+        """Return discovery tags, including typed inference contracts.
+
+        MLflow registered-model tags are string-valued.  The full typed
+        ``ModelInfo`` is also stored in logged-model metadata, but the toolbox
+        registry's discovery path reads registered-model tags.  Serialize only
+        the contract field here so legacy tags keep their existing shape while
+        contract-aware discovery remains lossless.
+        """
+        tags = {str(key): str(value) for key, value in model_info.tags.items()}
+        tags.pop("input_contracts", None)
+        if model_info.input_contracts:
+            tags["input_contracts"] = json.dumps(
+                [contract.model_dump(mode="json") for contract in model_info.input_contracts],
+                separators=(",", ":"),
+                sort_keys=True,
+            )
+        return tags
 
     def check_registered(self, model_identifier: str):
         """ Check if a model is registered in the registry. """

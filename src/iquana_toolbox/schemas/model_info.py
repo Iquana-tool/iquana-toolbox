@@ -1,8 +1,10 @@
 import ast
+import json
 from typing import List, Optional, Literal, Any
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, model_validator
 
+from iquana_toolbox.schemas.input_contract import InputContract
 from iquana_toolbox.schemas.training import HyperParameter
 
 
@@ -49,6 +51,12 @@ def _parse_list_like(value: Any) -> list:
             return []
         if stripped.startswith("[") and stripped.endswith("]"):
             try:
+                parsed = json.loads(stripped)
+                if isinstance(parsed, list):
+                    return parsed
+            except (TypeError, ValueError):
+                pass
+            try:
                 parsed = ast.literal_eval(stripped)
                 if isinstance(parsed, list):
                     return parsed
@@ -70,12 +78,48 @@ def _parse_dict_like(value: Any) -> dict[str, str]:
         if not stripped:
             return {}
         try:
+            parsed = json.loads(stripped)
+            if isinstance(parsed, dict):
+                return {str(key): str(val) for key, val in parsed.items()}
+        except (TypeError, ValueError):
+            pass
+        try:
             parsed = ast.literal_eval(stripped)
             if isinstance(parsed, dict):
                 return {str(key): str(val) for key, val in parsed.items()}
         except (ValueError, SyntaxError):
             return {}
     return {}
+
+
+def _parse_contracts_like(value: Any) -> Any:
+    """Parse the JSON representation of contracts without hiding bad values.
+
+    The generic list parser intentionally treats an empty tag as an empty
+    list for legacy display fields.  A declared ``input_contracts`` field is
+    different: an empty string, null, or a non-list JSON value is malformed
+    metadata and must reach Pydantic so discovery fails loudly.
+    """
+    if isinstance(value, list):
+        return value
+    if not isinstance(value, str):
+        return value
+
+    stripped = value.strip()
+    if not stripped:
+        return value
+    if not (stripped.startswith("[") and stripped.endswith("]")):
+        return value
+
+    try:
+        parsed = json.loads(stripped)
+        return parsed if isinstance(parsed, list) else value
+    except (TypeError, ValueError):
+        try:
+            parsed = ast.literal_eval(stripped)
+            return parsed if isinstance(parsed, list) else value
+        except (ValueError, SyntaxError):
+            return value
 
 
 def _canonical_task(task_value: Any) -> Optional[str]:
@@ -192,6 +236,10 @@ class ModelInfo(BaseModel):
         description="The hyperparameters this model exposes for training. The frontend renders "
                     "the training config UI generically from these (defaults, ranges, options)."
     )
+    input_contracts: List[InputContract] = Field(
+        default_factory=list,
+        description="The model-declared inference input contract for each advertised task."
+    )
     architecture: Optional[str] = Field(
         default=None,
         examples=["U-Net", "SAM2-Tiny", "Mask R-CNN"],
@@ -213,6 +261,13 @@ class ModelInfo(BaseModel):
         description="Approximate performance characteristics (params, GFLOPs, latency) "
                     "for display and sorting in the model zoo."
     )
+
+    @model_validator(mode="after")
+    def validate_input_contracts(self) -> "ModelInfo":
+        tasks = [contract.task for contract in self.input_contracts]
+        if len(tasks) != len(set(tasks)):
+            raise ValueError("input_contracts must contain at most one contract per task")
+        return self
 
 
 class PromptedSegmentationModelInfo(ModelInfo):
@@ -269,6 +324,12 @@ def parse_tags_to_model_info(tags: dict[str, Any]) -> ModelInfo:
 
     if "prompt_types_supported" in payload:
         payload["prompt_types_supported"] = _parse_list_like(payload.get("prompt_types_supported"))
+
+    if "training_parameters" in payload:
+        payload["training_parameters"] = _parse_list_like(payload.get("training_parameters"))
+
+    if "input_contracts" in payload:
+        payload["input_contracts"] = _parse_contracts_like(payload.get("input_contracts"))
 
     if "badges" in payload:
         payload["badges"] = [str(badge) for badge in _parse_list_like(payload.get("badges"))]

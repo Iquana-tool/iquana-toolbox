@@ -4,11 +4,10 @@ version = "0.1.0"
 description = "This repository contains common functionality in the IQUANA tool. It defines pydantic schemas, as well as common methods."
 requires-python = ">=3.12"
 # Deliberately free of torch/transformers/torchvision. This package is installed
-# by the backend and by iquana-service-core, neither of which runs a model, and a
-# transitive torch drags the whole CUDA toolkit (~GBs) into every `uv sync`. The
-# heavy in-process AI code (the DINOv3 backbone, the COCO dataloaders) therefore
-# lives in ai-service under `models/`; only the abstract `ai.base_classes`
-# interface and the MLflow registry stay here.
+# by the backend, which does not run models directly, and a transitive torch drags
+# the whole CUDA toolkit (~GBs) into every `uv sync`. The heavy in-process AI code
+# (the DINOv3 backbone, the COCO dataloaders) therefore lives in ai-service under
+# `models/`; only the abstract `ai.base_classes` interface and the MLflow registry stay here.
 dependencies = [
     "cachetools>=6.2.6",
     "mlflow>=3.10.1",
