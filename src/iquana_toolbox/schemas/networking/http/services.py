@@ -91,6 +91,17 @@ class InstanceSuggestionRequest(BaseServiceRequest):
     positive_exemplars: list[BinaryMask] = Field(..., description="Exemplars is a list of RLE encoded binary masks")
     negative_exemplars: list[BinaryMask] | None = Field(None, title="Negative exemplars")
     concept: Label | None = Field(default=None, description="Optional label defining the concept.")
+    parent_regions: list[BinaryMask] = Field(
+        default_factory=list,
+        title="Parent regions",
+        description="Masks of the existing objects of the concept's parent label (e.g. the coral "
+                    "fragments when suggesting polyps). Empty when the concept is a root label. "
+                    "Hierarchy-aware models search only inside these; others may ignore them.",
+    )
+
+    @cached_property
+    def parent_region_masks(self) -> list[np.ndarray]:
+        return [region.mask for region in self.parent_regions]
 
     @cached_property
     def positive_exemplar_masks(self) -> list[np.ndarray]:
