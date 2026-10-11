@@ -41,3 +41,22 @@ def test_source_aware_exemplars_default_to_independent_empty_lists() -> None:
     assert suggestion_request.exemplars == []
     instance_request.exemplars.append(CrossImageExemplar.model_validate(_exemplar_payload()))
     assert suggestion_request.exemplars == []
+
+
+def test_propagation_request_frame_range_is_clamped_and_ordered():
+    import numpy as np
+    from iquana_toolbox.schemas.database.masks import BinaryMask
+    from iquana_toolbox.schemas.networking.http.services import (
+        FrameMask, PropagationObject, PropagationRequest,
+    )
+
+    mask = BinaryMask.from_numpy_array(np.ones((4, 4), dtype=np.uint8))
+    request = PropagationRequest(
+        image_url="frame_2.png", user_id="u", model_registry_key="sam2-1-tiny",
+        frame_urls=[f"frame_{i}.png" for i in range(5)],
+        objects=[PropagationObject(object_id=7, frame_masks=[FrameMask(frame_index=2, mask=mask)])],
+        start_frame=9, end_frame=1,
+    )
+    assert request.frame_range == (1, 4)
+    assert request.direction == "both"
+    assert PropagationRequest.model_validate_json(request.model_dump_json()).objects[0].object_id == 7
