@@ -258,3 +258,70 @@ class CrossImageSuggestionRequest(BaseServiceRequest):
     """
 
     concept: Label | None = Field(default=None, description="Optional label adding a text prompt.")
+
+
+# --- Propagation through a stack (slices of a scan, frames of a video) ---
+
+class FrameMask(BaseModel):
+    """An object's outline on one frame of a stack, given as a prompt for propagation."""
+
+    frame_index: int = Field(..., ge=0, description="0-based position of the frame in ``frame_urls``.")
+    mask: BinaryMask = Field(..., description="RLE-encoded binary mask of the object on that frame.")
+
+
+class PropagationObject(BaseModel):
+    """One object to carry through the stack, with every frame a person drew it on.
+
+    Several drawn frames are allowed and help: a model with a memory (SAM 2) uses
+    each as a conditioning frame, so a correction on one slice steers the slices
+    around it.
+    """
+
+    object_id: int = Field(..., description="Caller's id for the object; echoed in every result.")
+    frame_masks: list[FrameMask] = Field(..., min_length=1, description="The frames the object is drawn on.")
+
+
+class PropagationRequest(BaseServiceRequest):
+    """Carry objects drawn on some frames of a stack to the other frames.
+
+    Generic over what the stack is: the slices of an OCT volume or a z-stack, or
+    the frames of a video. ``frame_urls`` are the frames in order; ``image_url``
+    (from the base) names the first frame the objects are drawn on, so code that
+    only reads ``image_url`` still sees a real image of the stack.
+    """
+
+    frame_urls: list[str] = Field(..., min_length=1, description="Every frame of the stack, in order.")
+    objects: list[PropagationObject] = Field(..., min_length=1)
+    start_frame: int | None = Field(
+        None, ge=0, description="First frame to fill (inclusive). Defaults to the first frame.")
+    end_frame: int | None = Field(
+        None, ge=0, description="Last frame to fill (inclusive). Defaults to the last frame.")
+    direction: Literal["both", "forward", "backward"] = Field(
+        "both", description="From the drawn frames towards higher indices, lower indices, or both.")
+
+    @property
+    def frame_range(self) -> tuple[int, int]:
+        """The inclusive range of frames to fill, clamped to the stack."""
+        last = len(self.frame_urls) - 1
+        start = 0 if self.start_frame is None else min(self.start_frame, last)
+        end = last if self.end_frame is None else min(self.end_frame, last)
+        return (start, end) if start <= end else (end, start)
+
+    @property
+    def frames(self) -> list[np.ndarray]:
+        """Every frame of the stack as an image, in order."""
+        return [get_image_from_url_cached(url) for url in self.frame_urls]
+
+
+class PropagatedMask(BaseModel):
+    """What a model found for one object on one frame."""
+
+    object_id: int
+    frame_index: int
+    mask: BinaryMask | None = Field(
+        None, description="The object's mask, or None where the model judged it absent.")
+    presence: float = Field(
+        ..., ge=0, le=1,
+        description="How sure the model is that the object is on this frame (0..1). Low values "
+                    "are the frames a person should look at; the object is treated as gone "
+                    "below the request's threshold.")
