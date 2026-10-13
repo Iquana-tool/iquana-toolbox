@@ -154,6 +154,9 @@ class MLFlowModelRegistry:
             self.client.set_registered_model_tag(
                 model.model_info.registry_key, "input_contracts", "[]"
             )
+        if model_is_registered and not model.model_info.classes:
+            # Same for a label space the model no longer declares.
+            self.client.set_registered_model_tag(model.model_info.registry_key, "classes", "[]")
         # ``log_model`` only stores the description inside the artifact metadata, but
         # consumers read ``RegisteredModel.description`` directly. Mirror it across.
         if model.model_info.description:
@@ -171,8 +174,8 @@ class MLFlowModelRegistry:
         MLflow registered-model tags are string-valued.  The full typed
         ``ModelInfo`` is also stored in logged-model metadata, but the toolbox
         registry's discovery path reads registered-model tags.  Serialize only
-        the contract field here so legacy tags keep their existing shape while
-        contract-aware discovery remains lossless.
+        the contract and class fields here so legacy tags keep their existing shape
+        while contract- and class-aware discovery remains lossless.
         """
         tags = {str(key): str(value) for key, value in model_info.tags.items()}
         tags.pop("input_contracts", None)
@@ -181,6 +184,13 @@ class MLFlowModelRegistry:
                 [contract.model_dump(mode="json") for contract in model_info.input_contracts],
                 separators=(",", ":"),
                 sort_keys=True,
+            )
+        # The label space, for the same reason: predictions are unreadable without it.
+        tags.pop("classes", None)
+        if model_info.classes:
+            tags["classes"] = json.dumps(
+                [model_class.model_dump(mode="json") for model_class in model_info.classes],
+                separators=(",", ":"),
             )
         return tags
 

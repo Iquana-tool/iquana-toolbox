@@ -176,6 +176,39 @@ class ModelPerformance(BaseModel):
     )
 
 
+class ModelClass(BaseModel):
+    """One class in a model's fixed label space.
+
+    A model that predicts a fixed set of classes (a pretrained semantic model, a model
+    fine-tuned on some dataset) declares them so its output can be read correctly
+    anywhere: every predicted contour names its class in ``Contour.model_class``, and the
+    gateway maps that class onto a dataset's own labels -- or discards it, or adds it as
+    a new label -- per the dataset's mapping.
+    """
+    key: str = Field(
+        ...,
+        examples=["vessel", "0"],
+        description="Stable identifier of the class within this model. Predictions carry it in "
+                    "Contour.model_class; dataset mappings are keyed by it.",
+    )
+    name: str = Field(
+        ...,
+        examples=["Choroidal vessels"],
+        description="Human-readable class name. Suggests the dataset label to map to, and names "
+                    "the label created when the class is added to a dataset.",
+    )
+    description: Optional[str] = Field(
+        default=None,
+        description="What the class covers, for people mapping it.",
+    )
+    part_of: Optional[str] = Field(
+        default=None,
+        description="Key of the class this one is part of (vessels are part of the choroid). "
+                    "Predictions of this class arrive as children of the containing prediction, "
+                    "and a label created for it is nested under its parent's label.",
+    )
+
+
 class ModelInfo(BaseModel):
     """
     A model info object. This is used to gather information about the model, which can be displayed in the frontend.
@@ -261,12 +294,23 @@ class ModelInfo(BaseModel):
         description="Approximate performance characteristics (params, GFLOPs, latency) "
                     "for display and sorting in the model zoo."
     )
+    classes: List[ModelClass] = Field(
+        default_factory=list,
+        description="The model's fixed label space. Empty for a class-agnostic model (a prompted "
+                    "or exemplar-driven segmenter), whose output takes whatever label it is run for."
+    )
 
     @model_validator(mode="after")
     def validate_input_contracts(self) -> "ModelInfo":
         tasks = [contract.task for contract in self.input_contracts]
         if len(tasks) != len(set(tasks)):
             raise ValueError("input_contracts must contain at most one contract per task")
+        keys = [model_class.key for model_class in self.classes]
+        if len(keys) != len(set(keys)):
+            raise ValueError("classes must have unique keys")
+        unknown = {c.part_of for c in self.classes if c.part_of is not None} - set(keys)
+        if unknown:
+            raise ValueError(f"classes reference unknown part_of keys: {sorted(unknown)}")
         return self
 
 
@@ -327,6 +371,9 @@ def parse_tags_to_model_info(tags: dict[str, Any]) -> ModelInfo:
 
     if "training_parameters" in payload:
         payload["training_parameters"] = _parse_list_like(payload.get("training_parameters"))
+
+    if "classes" in payload:
+        payload["classes"] = _parse_list_like(payload.get("classes"))
 
     if "input_contracts" in payload:
         payload["input_contracts"] = _parse_contracts_like(payload.get("input_contracts"))
