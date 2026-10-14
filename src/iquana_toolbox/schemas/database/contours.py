@@ -45,6 +45,10 @@ class Contour(BaseModel):
 
     added_by: str = Field(default_factory=str, description="ID of the user or model who added this contour.")
     confidence: float = Field(default=1., description="Confidence score of the contour.")
+    model_class: str | None = Field(default=None, description="Key of the class in the predicting model's "
+                                                               "label space (ModelInfo.classes). Set by models "
+                                                               "with a fixed label space; the gateway maps it "
+                                                               "to a dataset label. None for anything else.")
     quantification: QuantificationModel | None = Field(default=None, description="Quantification of the contour. Does "
                                                                                  "not need to be provided.")
 
