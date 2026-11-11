@@ -31,7 +31,7 @@ class Label(BaseModel):
             id=label.id,
             dataset_id=label.dataset_id,
             name=label.name,
-            value=label.value if label.value else None,
+            value=label.value if label.value is not None else None,
             parent_id=label.parent_id,
             children=[]
         )
