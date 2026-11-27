@@ -22,12 +22,25 @@ def get_contours(mask,
     return contours, hierarchy
 
 
-def normalize_contours(contours: list[np.ndarray], width, height) -> list[np.ndarray]:
-    for i, contour in enumerate(contours):
-        contour[..., 0] = contour[..., 0] / width
-        contour[..., 1] = contour[..., 1] / height
-        contours[i] = contour
-    return contours
+def normalize_contours(contours: list[np.ndarray], width: float, height: float) -> list[np.ndarray]:
+    """Normalize a list of OpenCV contours to [0, 1] relative to width and height.
+
+    Casts input contours to float64 to ensure fractional coordinates survive
+    normalization when given integer (e.g. int32) arrays from OpenCV, without
+    mutating caller input arrays in place.
+
+    Note on holes: By convention and in accordance with ``cv2.RETR_EXTERNAL`` used
+    in ``get_contours``, contours represent outer boundaries; internal holes are
+    not tracked as separate rings in this schema.
+    """
+    normalized_list = []
+    for contour in contours:
+        c = np.asarray(contour, dtype=np.float64).copy()
+        if c.size > 0:
+            c[..., 0] = c[..., 0] / width
+            c[..., 1] = c[..., 1] / height
+        normalized_list.append(c)
+    return normalized_list
 
 
 class Contour(BaseModel):
